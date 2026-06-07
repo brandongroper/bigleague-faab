@@ -4,7 +4,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Big League — FAAB 2025</title>
+<title>The Big League — FAAB Intelligence</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%230d0d0f'/><text y='72' x='50' text-anchor='middle' font-size='60' font-family='Arial Black,sans-serif' fill='%23c8f135'>$</text></svg>">
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@500;600;700&display=swap');
 
@@ -19,13 +20,13 @@
 html,body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;line-height:1.5;min-height:100vh}
 .page{max-width:1100px;margin:0 auto;padding:2rem 1.5rem 5rem}
 
-.topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2.5rem;flex-wrap:wrap;gap:12px}
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2rem;flex-wrap:wrap;gap:10px}
 .eyebrow{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--lime);margin-bottom:6px}
 h1{font-family:'Space Grotesk',sans-serif;font-size:clamp(24px,3.5vw,34px);font-weight:700;line-height:1.2}
 h1 .line2{display:block;font-size:clamp(18px,2.8vw,26px);font-weight:700;color:var(--lime);margin-top:2px;line-height:1.4;padding-bottom:4px}
 h1 em{color:var(--lime);font-style:normal}
-.nav-tabs{display:flex;gap:6px;flex-wrap:wrap}
-.nav-tab{font-size:11px;padding:6px 14px;border-radius:6px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s}
+.nav-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.nav-tab{font-size:10px;padding:5px 10px;border-radius:6px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s;white-space:nowrap}
 .nav-tab:hover{border-color:var(--b3);color:var(--text)}
 .nav-tab.active{background:var(--lime);color:#0d0d0f;border-color:var(--lime);font-weight:500}
 
@@ -193,6 +194,71 @@ h1 em{color:var(--lime);font-style:normal}
 .yoy-bar-card:hover{border-color:var(--b2)}
 .view{display:none}.view.active{display:block}
 
+/* War Room */
+.wr-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem}
+@media(max-width:700px){.wr-grid{grid-template-columns:1fr}}
+.wr-panel{background:var(--s1);border:.5px solid var(--b1);border-radius:14px;overflow:hidden}
+.wr-panel.accent{border-color:rgba(200,241,53,0.25)}
+.wr-panel-header{padding:1rem 1.25rem;border-bottom:.5px solid var(--b1);display:flex;align-items:center;gap:10px}
+.wr-panel-icon{font-size:18px}
+.wr-panel-title{font-family:'Space Grotesk',sans-serif;font-size:15px;font-weight:700;color:var(--text)}
+.wr-panel-sub{font-size:10px;color:var(--muted2);margin-top:2px}
+.wr-panel-body{padding:1rem 1.25rem}
+
+/* Bid calculator */
+.bc-form{display:flex;flex-direction:column;gap:10px;margin-bottom:1rem}
+.bc-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.bc-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;width:70px;flex-shrink:0}
+.bc-select,.bc-input{background:var(--s2);border:.5px solid var(--b2);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:12px;padding:5px 10px;outline:none}
+.bc-select:focus,.bc-input:focus{border-color:var(--lime)}
+.bc-select{cursor:pointer}
+.bc-mgr-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;margin-top:4px}
+.bc-mgr-check{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted2);cursor:pointer;padding:4px 8px;background:var(--s2);border-radius:6px;border:.5px solid var(--b1);transition:all .12s}
+.bc-mgr-check:hover{border-color:var(--b2);color:var(--text)}
+.bc-mgr-check.selected{border-color:var(--lime);background:rgba(200,241,53,.08);color:var(--lime)}
+.bc-mgr-check input{display:none}
+
+.bc-result{background:var(--s2);border-radius:10px;padding:1rem;margin-top:8px}
+.bc-rec-bid{font-family:'Space Grotesk',sans-serif;font-size:32px;font-weight:700;color:var(--lime);line-height:1}
+.bc-rec-sub{font-size:11px;color:var(--muted2);margin-top:4px}
+.bc-competitor-table{width:100%;margin-top:12px}
+.bc-comp-row{display:grid;grid-template-columns:1fr 52px 65px 65px 70px;gap:6px;align-items:start;padding:7px 0;border-bottom:.5px solid var(--b1);font-size:11px}
+.bc-comp-row:last-child{border-bottom:none}
+.bc-comp-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding-bottom:8px;border-bottom:.5px solid var(--b2)}
+.bc-budget-warning{background:rgba(248,113,113,.08);border:.5px solid rgba(248,113,113,.25);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--red);margin-top:8px}
+.bc-budget-ok{background:rgba(52,211,153,.06);border:.5px solid rgba(52,211,153,.2);border-radius:8px;padding:8px 12px;font-size:11px;color:var(--green);margin-top:8px}
+
+/* Budget strategy */
+.bs-sliders{display:flex;flex-direction:column;gap:8px;margin-bottom:1rem}
+.bs-pos-row{display:flex;align-items:center;gap:10px}
+.bs-pos-label{font-size:11px;width:30px;flex-shrink:0}
+.bs-options{display:flex;gap:4px}
+.bs-opt{font-size:10px;padding:3px 10px;border-radius:4px;border:.5px solid var(--b1);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s}
+.bs-opt:hover{color:var(--text);border-color:var(--b2)}
+.bs-opt.active{background:var(--s2);color:var(--text);border-color:var(--b2)}
+.bs-opt.active-strong{background:rgba(52,211,153,.1);color:var(--green);border-color:rgba(52,211,153,.3)}
+.bs-opt.active-weak{background:rgba(248,113,113,.08);color:var(--red);border-color:rgba(248,113,113,.25)}
+
+.bs-result{margin-top:1rem}
+.bs-phase-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:1rem}
+.bs-phase{background:var(--s2);border-radius:8px;padding:.75rem;text-align:center;border:.5px solid var(--b1)}
+.bs-phase-val{font-family:'Space Grotesk',sans-serif;font-size:20px;font-weight:700;color:var(--lime)}
+.bs-phase-lbl{font-size:9px;color:var(--muted);margin-top:2px;text-transform:uppercase;letter-spacing:.06em}
+.bs-phase-sub{font-size:9px;color:var(--muted2);margin-top:3px}
+.bs-insight{font-size:11px;color:var(--muted2);line-height:1.7;background:var(--s2);border-radius:8px;padding:.85rem 1rem}
+.bs-insight strong{color:var(--text);font-weight:500}
+.bs-bench{display:flex;gap:6px;align-items:center;margin-top:8px;font-size:10px;color:var(--muted)}
+.bs-bench-dot{width:8px;height:8px;border-radius:50%;background:var(--lime);flex-shrink:0}
+
+/* Manager notes */
+.mn-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px}
+.mn-card{background:var(--s2);border:.5px solid var(--b1);border-radius:10px;padding:.85rem 1rem}
+.mn-name{font-family:'Space Grotesk',sans-serif;font-size:13px;font-weight:700;margin-bottom:6px}
+.mn-stats{font-size:10px;color:var(--muted2);margin-bottom:8px;line-height:1.6}
+.mn-textarea{width:100%;background:var(--s1);border:.5px solid var(--b2);border-radius:6px;color:var(--text);font-family:'DM Mono',monospace;font-size:11px;padding:6px 8px;resize:vertical;min-height:60px;outline:none;line-height:1.5}
+.mn-textarea:focus{border-color:var(--lime)}
+.mn-saved{font-size:9px;color:var(--green);margin-top:4px;opacity:0;transition:opacity .3s}
+
 /* Position intelligence */
 .pos-intel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:1rem}
 .pos-intel-card{background:var(--s1);border:.5px solid var(--b1);border-radius:10px}
@@ -251,17 +317,18 @@ h1 em{color:var(--lime);font-style:normal}
 <body>
 <div class="page">
   <div class="topbar">
-    <div style="padding-right:1rem">
+    <div>
       <div class="eyebrow">2025 season · waiver wire</div>
       <h1>The Big League<span class="line2">FAAB Intelligence</span></h1>
     </div>
-    <div class="nav-tabs">
-      <button class="nav-tab active" onclick="showView('overview')">Overview</button>
-      <button class="nav-tab" onclick="showView('managers')">Managers</button>
-      <button class="nav-tab" onclick="showView('weekly')">Weekly</button>
-      <button class="nav-tab" onclick="showView('rivals')">Rivals</button>
-      <button class="nav-tab" onclick="showView('history')">2024 vs 2025</button>
-    </div>
+  </div>
+  <div style="margin-bottom:2rem;display:flex;flex-wrap:wrap;gap:5px">
+    <button class="nav-tab active" onclick="showView('overview')">Overview</button>
+    <button class="nav-tab" onclick="showView('managers')">Managers</button>
+    <button class="nav-tab" onclick="showView('weekly')">Weekly</button>
+    <button class="nav-tab" onclick="showView('rivals')">Rivals</button>
+    <button class="nav-tab" onclick="showView('history')">2024 vs 2025</button>
+    <button class="nav-tab" onclick="showView('warroom')" style="background:rgba(200,241,53,0.08);border-color:rgba(200,241,53,0.3)">War Room</button>
   </div>
 
   <div id="loader">
@@ -322,6 +389,11 @@ h1 em{color:var(--lime);font-style:normal}
     <div class="view" id="view-rivals">
       <div class="sec">rivalry matrix — contested auction head-to-head records</div>
       <div id="rivals-content"><div style="color:var(--muted);font-size:12px;padding:2rem 0;text-align:center">Loading...</div></div>
+    </div>
+
+    <!-- WAR ROOM -->
+    <div class="view" id="view-warroom">
+      <div id="warroom-content"></div>
     </div>
 
     <!-- HISTORY -->
@@ -568,7 +640,7 @@ function showView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach((t,i)=>{
-    t.classList.toggle('active',['overview','managers','weekly','rivals','history'][i]===v);
+    t.classList.toggle('active',['overview','managers','weekly','rivals','history','warroom'][i]===v);
   });
   if(v==='managers'){
     document.getElementById('mgr-grid-view').style.display='block';
@@ -576,6 +648,7 @@ function showView(v){
   }
   if(v==='history') renderHistory();
   if(v==='rivals') renderRivals();
+  if(v==='warroom') renderWarRoom();
 }
 
 function setFilter(f,btn){
@@ -1224,6 +1297,551 @@ function goToManager(name){
   setTimeout(()=>showManagerDetail(name),50);
 }
 
+
+
+// ── WAR ROOM ─────────────────────────────────────────────────────────────────
+
+// Manager notes — localStorage
+function getNotes(){ try{ return JSON.parse(localStorage.getItem('wr_notes')||'{}'); }catch(e){ return {}; } }
+function saveNote(name, text){
+  const notes=getNotes(); notes[name]=text;
+  localStorage.setItem('wr_notes', JSON.stringify(notes));
+}
+
+// Budget strategy state
+let _bsState={
+  positions:{RB:'ok',WR:'ok',QB:'ok',TE:'ok'},
+  aggression:'balanced'
+};
+
+// Bid calculator state
+let _bcState={pos:'RB', competitors:new Set()};
+
+function calcBidRecommendation(pos, competitors){
+  const results=[];
+
+  competitors.forEach(name=>{
+    const intelAll=buildPositionIntel(name,'all')[pos];
+    const intel25=buildPositionIntel(name,2025)[pos];
+    const intel24=buildPositionIntel(name,2024)[pos];
+
+    // Pull overbid analysis for this manager (all-time)
+    const overbid=buildOverbidAnalysis(name);
+
+    // Pull tendencies from stats
+    const s25=APP.stats[name]||{};
+    const s24=APP.stats2024[name]||{};
+    const arch=archetype(s25);
+
+    if(!intelAll||intelAll.empty){
+      results.push({name,typical:0,ceiling:0,allTimeMax:0,effectiveCeiling:0,
+        risk:'No data',hasData:false,arch,notes:[]});
+      return;
+    }
+
+    const typical=intelAll.typicalMedian||0;
+    const ceiling=intelAll.typicalMax||0;
+    const allTimeMax=intelAll.max||0;
+    const hasOutliers=(intelAll.outliers||[]).length>0;
+    const totalBids=intelAll.allBids?.length||0;
+
+    // --- Effective ceiling calculation ---
+    // Start with the typical ceiling
+    let effectiveCeiling=ceiling;
+    const notes=[];
+
+    // 1. Overbid style adjustment
+    // Loose/Overpayer managers tend to bid higher than their ceiling suggests
+    if(overbid){
+      const{style,avgMargin,uncontestedWaste}=overbid;
+      if(style==='Overpayer'&&avgMargin>0){
+        // They consistently win by large margins — their true ceiling is higher
+        effectiveCeiling=Math.round(ceiling+avgMargin*0.5);
+        notes.push(`${style} — adds ~${fmt(Math.round(avgMargin*0.5))} to ceiling estimate`);
+      } else if(style==='Loose'&&avgMargin>0){
+        effectiveCeiling=Math.round(ceiling+avgMargin*0.3);
+        notes.push(`${style} bidder — slight ceiling uplift`);
+      } else if(style==='Surgical'||style==='Precise'){
+        // These managers are tight — ceiling is accurate, maybe even high
+        effectiveCeiling=Math.max(ceiling-1,0);
+        notes.push(`${style} bidder — ceiling estimate is reliable`);
+      }
+      if(uncontestedWaste>=10){
+        notes.push(`Budget Burner pattern — may panic-bid above ceiling`);
+        effectiveCeiling=Math.max(effectiveCeiling, allTimeMax);
+      }
+    }
+
+    // 2. Spike risk — outlier bids suggest they can go way above ceiling situationally
+    if(hasOutliers&&allTimeMax>=ceiling*1.5&&allTimeMax>=10){
+      effectiveCeiling=Math.max(effectiveCeiling, allTimeMax);
+      notes.push(`Outlier spike detected — ceiling unreliable, using all-time max`);
+    }
+
+    // 3. Trend adjustment — getting more aggressive at this position?
+    let trend='—';
+    if(intel25&&intel24&&!intel25.empty&&!intel24.empty){
+      const delta=(intel25.totalSpent||0)-(intel24.totalSpent||0);
+      if(delta>=8){
+        trend='↑ Much more aggressive in 2025';
+        effectiveCeiling=Math.round(effectiveCeiling*1.15);
+        notes.push(`Spending surged at ${pos} in 2025 — trending up`);
+      } else if(delta>=4){
+        trend='↑ More aggressive in 2025';
+      } else if(delta<=-8){
+        trend='↓ Much less aggressive in 2025';
+        effectiveCeiling=Math.round(effectiveCeiling*0.85);
+        notes.push(`Pulling back at ${pos} — ceiling adjusted down`);
+      } else if(delta<=-4){
+        trend='↓ Less aggressive in 2025';
+      } else {
+        trend='→ Consistent';
+      }
+    }
+
+    // 4. Win rate in contested auctions at this position
+    // High win rate = formidable competitor even at their ceiling
+    const posContested=Object.values({...APP.weeklyData,...APP.weeklyData2024}).flatMap(wd=>
+      (wd.players||[]).filter(p=>p.pos===pos&&p.bids.length>1&&p.bids.some(b=>b.manager===name))
+    );
+    const posWon=posContested.filter(p=>p.bids.find(b=>b.manager===name&&b.status==='complete')).length;
+    const posWinRate=posContested.length>0?Math.round(posWon/posContested.length*100):null;
+    if(posWinRate!==null&&posWinRate>=70&&posContested.length>=3){
+      notes.push(`${posWinRate}% contested win rate at ${pos} — dominant`);
+      effectiveCeiling=Math.max(effectiveCeiling,ceiling+2);
+    } else if(posWinRate!==null&&posWinRate<=30&&posContested.length>=3){
+      notes.push(`Only ${posWinRate}% contested win rate at ${pos} — often outbid themselves`);
+    }
+
+    // Risk level based on effective ceiling
+    let risk;
+    if(hasOutliers&&allTimeMax>=ceiling*1.5&&allTimeMax>=10) risk='Spike risk';
+    else if(effectiveCeiling>=15&&totalBids>=3) risk='High';
+    else if(effectiveCeiling>=8||(effectiveCeiling>=5&&totalBids>=4)) risk='Moderate';
+    else if(totalBids===0) risk='No data';
+    else risk='Low';
+
+    results.push({name,typical,ceiling,allTimeMax,effectiveCeiling,
+      risk,hasData:true,trend,totalBids,arch,notes,
+      posWinRate,posContested:posContested.length});
+  });
+
+  if(!results.length) return null;
+
+  const hasData=results.some(r=>r.hasData);
+
+  let recommended, safeFloor, reasoning;
+
+  if(!hasData){
+    const defaults={RB:10,WR:10,QB:5,TE:8,DEF:2,K:2};
+    recommended=defaults[pos]||5;
+    safeFloor=1;
+    reasoning=`No historical data for selected competitors at ${pos}. Using position default as starting point.`;
+  } else {
+    const active=results.filter(r=>r.hasData);
+
+    // Use effective ceiling (already adjusted for style, trend, outliers)
+    const maxEffective=Math.max(...active.map(r=>r.effectiveCeiling),0);
+    recommended=maxEffective>0?maxEffective+1:1;
+
+    // Safe floor = above highest typical bid
+    const maxTypical=Math.max(...active.map(r=>r.typical),0);
+    safeFloor=maxTypical>0?maxTypical+1:1;
+    if(recommended<safeFloor) recommended=safeFloor;
+
+    // Build reasoning from the top threat
+    const topThreat=active.sort((a,b)=>b.effectiveCeiling-a.effectiveCeiling)[0];
+    const hasSpike=results.some(r=>r.risk==='Spike risk');
+    const adjustments=active.flatMap(r=>r.notes).filter(Boolean);
+
+    reasoning=`Based on ${topThreat.name}'s effective ${pos} ceiling of ${fmt(topThreat.effectiveCeiling)}`;
+    if(topThreat.effectiveCeiling!==topThreat.ceiling){
+      reasoning+=` (adjusted from raw ceiling of ${fmt(topThreat.ceiling)})`;
+    }
+    reasoning+='.';
+    if(adjustments.length) reasoning+=` Key factors: ${adjustments.slice(0,2).join('; ')}.`;
+  }
+
+  const hasSpike=results.some(r=>r.risk==='Spike risk');
+  return{results, recommended, safeFloor, hasSpike, reasoning};
+}
+
+function calcPhaseSpend(statsObj){
+  const ps={early:0,mid:0,playoff:0};
+  Object.entries(statsObj.weekSpend||{}).forEach(([w,amt])=>{
+    const wk=parseInt(w);
+    if(wk<=6) ps.early+=amt;
+    else if(wk<=12) ps.mid+=amt;
+    else ps.playoff+=amt;
+  });
+  return ps;
+}
+
+function calcTop4Avg(statsSource){
+  // Rank managers by wins (using record from stats — proxy for final standing)
+  // Use total spent efficiency: bid count relative to spend as a proxy
+  // Actually use wins from roster settings — not available here so use bidCount as proxy
+  // Best proxy: sort by totalSpent efficiency = bidCount/totalSpent (more adds per dollar = efficient)
+  // Instead: identify top 4 by playoff appearance proxy = high bid count + reasonable remaining
+  const managers=Object.values(ROSTER_MAP);
+  // Sort by bid count + remaining budget (active + didn't blow budget)
+  const ranked=[...managers].sort((a,b)=>{
+    const sa=statsSource[a]||{bidCount:0,remainingFAAB:0,totalSpent:0};
+    const sb=statsSource[b]||{bidCount:0,remainingFAAB:0,totalSpent:0};
+    // Score = bids won * (remaining+1) — rewards both activity and efficiency
+    return (sb.bidCount*(sb.remainingFAAB+1))-(sa.bidCount*(sa.remainingFAAB+1));
+  });
+  const top4=ranked.slice(0,4);
+  const avg={early:0,mid:0,playoff:0};
+  top4.forEach(name=>{
+    const ps=calcPhaseSpend(statsSource[name]||{});
+    avg.early+=ps.early; avg.mid+=ps.mid; avg.playoff+=ps.playoff;
+  });
+  avg.early=Math.round(avg.early/4);
+  avg.mid=Math.round(avg.mid/4);
+  avg.playoff=Math.round(avg.playoff/4);
+  return{avg, top4};
+}
+
+function calcBudgetStrategy(){
+  const {positions, aggression}=_bsState;
+  const myStats25=APP.stats[YOU]||{};
+  const myStats24=APP.stats2024[YOU]||{};
+
+  // Base allocation by phase
+  const bases={conservative:{early:20,mid:35,playoff:30,buffer:15},
+               balanced:{early:25,mid:40,playoff:25,buffer:10},
+               aggressive:{early:35,mid:40,playoff:20,buffer:5}};
+  const base=bases[aggression];
+
+  let adj={early:0,mid:0,playoff:0,buffer:0};
+  Object.entries(positions).forEach(([pos,str])=>{
+    if(str==='weak'){
+      if(pos==='RB'||pos==='WR'){adj.early+=5;adj.mid+=5;adj.buffer-=5;adj.playoff-=5;}
+      else{adj.mid+=5;adj.buffer-=5;}
+    } else if(str==='strong'){
+      adj.buffer+=3;adj.early-=1;adj.mid-=2;
+    }
+  });
+
+  const phases={
+    early:Math.max(Math.min(base.early+adj.early,50),10),
+    mid:Math.max(Math.min(base.mid+adj.mid,50),10),
+    playoff:Math.max(Math.min(base.playoff+adj.playoff,40),5),
+    buffer:Math.max(Math.min(base.buffer+adj.buffer,20),0)
+  };
+  const total=phases.early+phases.mid+phases.playoff+phases.buffer;
+  if(total!==100){phases.mid+=100-total;}
+
+  // Your own historical patterns
+  const my25=calcPhaseSpend(myStats25);
+  const my24=calcPhaseSpend(myStats24);
+
+  // Top-4 average benchmark (2025)
+  const {avg:top4avg, top4:top4names}=calcTop4Avg(APP.stats);
+
+  const weakPos=Object.entries(positions).filter(([,v])=>v==='weak').map(([p])=>p);
+  const strongPos=Object.entries(positions).filter(([,v])=>v==='strong').map(([p])=>p);
+
+  const insights=[];
+  if(weakPos.length) insights.push(`Roster weak at <strong>${weakPos.join(', ')}</strong> — budget front-loaded to address on the wire early.`);
+  if(strongPos.length) insights.push(`Strong at <strong>${strongPos.join(', ')}</strong> — more reserved for opportunistic mid-season adds.`);
+
+  // Compare your 2025 vs recommendation
+  if(myStats25.totalSpent){
+    const earlyDiff=phases.early-my25.early;
+    const midDiff=phases.mid-my25.mid;
+    if(Math.abs(earlyDiff)>=5) insights.push(`vs your 2025: this plan allocates <strong>${earlyDiff>0?'$'+earlyDiff+' more':'$'+Math.abs(earlyDiff)+' less'}</strong> early (you spent ${fmt(my25.early)} Wks 1-6 in 2025).`);
+    if(myStats25.remainingFAAB>=20) insights.push(`In 2025 you left <strong>${fmt(myStats25.remainingFAAB)}</strong> unspent — this plan pushes you to deploy more aggressively mid-season.`);
+  }
+
+  const weeklyBudget={
+    early:Math.round(phases.early/6),
+    mid:Math.round(phases.mid/6),
+    playoff:Math.round(phases.playoff/6)
+  };
+  insights.push(`Weekly targets: Wks 1-6 ~<strong>${fmt(weeklyBudget.early)}/wk</strong> · Wks 7-12 ~<strong>${fmt(weeklyBudget.mid)}/wk</strong> · Wks 13-18 ~<strong>${fmt(weeklyBudget.playoff)}/wk</strong>.`);
+
+  return{phases, insights, my25, my24, top4avg, top4names};
+}
+
+function renderWarRoom(){
+  const el=document.getElementById('warroom-content');
+  if(!el)return;
+  const managers=Object.values(ROSTER_MAP).filter(m=>m!==YOU);
+  const notes=getNotes();
+  const myStats=APP.stats[YOU]||{totalSpent:0,remainingFAAB:100};
+
+  el.innerHTML=`
+    <div class="sec" style="margin-top:0">⚔ War Room — waiver strategy hub</div>
+
+    <div class="wr-grid">
+      <!-- BID CALCULATOR -->
+      <div class="wr-panel accent">
+        <div class="wr-panel-header">
+          <span class="wr-panel-icon">🎯</span>
+          <div>
+            <div class="wr-panel-title">Bid Calculator</div>
+            <div class="wr-panel-sub">Find the optimal bid based on competitor tendencies</div>
+          </div>
+        </div>
+        <div class="wr-panel-body">
+          <div class="bc-form">
+            <div class="bc-row">
+              <span class="bc-label">Position</span>
+              <select class="bc-select" id="bc-pos" onchange="updateBidCalc()">
+                ${['RB','WR','QB','TE','DEF','K'].map(p=>`<option value="${p}" ${p==='RB'?'selected':''}>${p}</option>`).join('')}
+              </select>
+            </div>
+            <div>
+              <div class="bc-label" style="margin-bottom:6px;width:auto">Who do you expect to bid?</div>
+              <div class="bc-mgr-grid" id="bc-mgr-grid">
+                ${managers.map(m=>`
+                  <div class="bc-mgr-check" id="bccheck-${m}" onclick="toggleBcMgr('${m}')">
+                    <span style="color:${nameClass(m)||'var(--muted2)'}">${m}${m===WINNER?' 🏆':''}</span>
+                  </div>`).join('')}
+              </div>
+            </div>
+          </div>
+          <div id="bc-result"><div style="font-size:11px;color:var(--muted);text-align:center;padding:1rem 0">Select a position and competitors above</div></div>
+        </div>
+      </div>
+
+      <!-- BUDGET STRATEGY -->
+      <div class="wr-panel">
+        <div class="wr-panel-header">
+          <span class="wr-panel-icon">📊</span>
+          <div>
+            <div class="wr-panel-title">Budget Strategy</div>
+            <div class="wr-panel-sub">Personalized $100 allocation plan for 2026</div>
+          </div>
+        </div>
+        <div class="wr-panel-body">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Post-draft roster strength</div>
+          <div class="bs-sliders">
+            ${['RB','WR','QB','TE'].map(pos=>`
+              <div class="bs-pos-row">
+                <span class="bs-pos-label" style="color:${posColor(pos)}">${pos}</span>
+                <div class="bs-options">
+                  <button class="bs-opt" id="bs-${pos}-weak" onclick="setBsPos('${pos}','weak')">Weak</button>
+                  <button class="bs-opt active" id="bs-${pos}-ok" onclick="setBsPos('${pos}','ok')">OK</button>
+                  <button class="bs-opt" id="bs-${pos}-strong" onclick="setBsPos('${pos}','strong')">Strong</button>
+                </div>
+              </div>`).join('')}
+          </div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Aggressiveness</div>
+          <div style="display:flex;gap:4px;margin-bottom:1rem">
+            <button class="bs-opt" id="bs-agg-conservative" onclick="setBsAgg('conservative')">Conservative</button>
+            <button class="bs-opt active" id="bs-agg-balanced" onclick="setBsAgg('balanced')">Balanced</button>
+            <button class="bs-opt" id="bs-agg-aggressive" onclick="setBsAgg('aggressive')">Aggressive</button>
+          </div>
+          <div id="bs-result"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MANAGER NOTES — full width -->
+    <div class="wr-panel" style="margin-bottom:1.5rem">
+      <div class="wr-panel-header">
+        <span class="wr-panel-icon">📝</span>
+        <div>
+          <div class="wr-panel-title">Manager Scouting Notes</div>
+          <div class="wr-panel-sub">Notes auto-save in your browser · private to you</div>
+        </div>
+      </div>
+      <div class="wr-panel-body">
+        <div class="mn-grid">
+          ${managers.map(m=>{
+            const s=APP.stats[m]||{totalSpent:0,bidCount:0,maxBid:0,remainingFAAB:null};
+            const s24=APP.stats2024[m]||{totalSpent:0};
+            const arch=archetype(s);
+            return`<div class="mn-card">
+              <div class="mn-name" style="color:${nameClass(m)||'var(--text)'}">${m}${m===WINNER?' 🏆':''}</div>
+              <div class="mn-stats">
+                2025: ${fmt(s.totalSpent)} · ${s.bidCount} adds · ceiling ${fmt(s.maxBid)}<br>
+                2024: ${fmt(s24.totalSpent)} spent · ${arch}
+              </div>
+              <textarea class="mn-textarea" id="mn-${m}" placeholder="Add scouting notes..."
+                onblur="saveManagerNote('${m}')"
+                onkeydown="if(event.key==='Enter'&&event.metaKey)saveManagerNote('${m}')"
+              >${notes[m]||''}</textarea>
+              <div class="mn-saved" id="mn-saved-${m}">✓ Saved</div>
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Init budget strategy — defer to ensure DOM is ready after innerHTML set
+  setTimeout(updateBudgetStrategy, 0);
+}
+
+function toggleBcMgr(name){
+  if(_bcState.competitors.has(name)) _bcState.competitors.delete(name);
+  else _bcState.competitors.add(name);
+  const el=document.getElementById('bccheck-'+name);
+  if(el) el.classList.toggle('selected', _bcState.competitors.has(name));
+  updateBidCalc();
+}
+
+function updateBidCalc(){
+  const posEl=document.getElementById('bc-pos');
+  if(posEl) _bcState.pos=posEl.value;
+  const result=document.getElementById('bc-result');
+  if(!result)return;
+
+  const myStats=APP.stats[YOU]||{};
+  const remaining=myStats.remainingFAAB??BUDGET;
+
+  if(_bcState.competitors.size===0){
+    result.innerHTML=`<div style="font-size:11px;color:var(--muted);text-align:center;padding:1rem 0">Select at least one competitor above</div>`;
+    return;
+  }
+
+  const calc=calcBidRecommendation(_bcState.pos,[..._bcState.competitors]);
+  if(!calc){result.innerHTML='';return;}
+
+  const {results,recommended,safeFloor,hasSpike}=calc;
+  const budgetPct=Math.round(recommended/BUDGET*100);
+  const wouldLeave=remaining-recommended;
+  const budgetWarn=wouldLeave<15&&remaining<BUDGET;
+
+  result.innerHTML=`
+    <div class="bc-result">
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:8px">
+        <div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Recommended bid</div>
+          <div class="bc-rec-bid">${fmt(recommended)}</div>
+          <div class="bc-rec-sub">${budgetPct}% of budget · safe floor ${fmt(safeFloor)}</div>
+          ${calc.reasoning?`<div style="font-size:10px;color:var(--muted2);margin-top:5px;line-height:1.5">${calc.reasoning}</div>`:''}
+        </div>
+        ${hasSpike?`<div style="font-size:10px;background:rgba(251,191,36,.1);border:.5px solid rgba(251,191,36,.3);border-radius:6px;padding:4px 8px;color:var(--amber);max-width:160px;line-height:1.5">⚠ Spike risk detected — a competitor has bid well above their ceiling before</div>`:''}
+      </div>
+      <div class="bc-competitor-table">
+        <div class="bc-comp-row bc-comp-hdr">
+          <div>Manager · archetype · notes</div>
+          <div style="text-align:right">Typical</div>
+          <div style="text-align:right">Raw ceiling</div>
+          <div style="text-align:right">Adj. ceiling</div>
+          <div style="text-align:right">Risk</div>
+        </div>
+        ${!results.some(r=>r.hasData)?`<div style="font-size:11px;color:var(--muted);padding:8px 0">No historical bid data at ${_bcState.pos} for selected managers.</div>`:''}
+        ${results.map(r=>`
+          <div class="bc-comp-row">
+            <div>
+              <span style="color:${nameClass(r.name)||'var(--muted2)'}">${r.name}${r.name===WINNER?' 🏆':''}</span>
+              ${r.arch?`<div style="font-size:9px;color:var(--muted)">${r.arch}${r.trend&&r.trend!=='—'?' · '+r.trend:''}</div>`:''}
+              ${r.notes&&r.notes.length?`<div style="font-size:9px;color:var(--amber);margin-top:1px">${r.notes[0]}</div>`:''}
+            </div>
+            <div style="text-align:right;color:var(--muted2)">${r.hasData?fmt(r.typical):'—'}</div>
+            <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:${(r.ceiling||0)>=15?'var(--amber)':'var(--text)'}">${r.hasData?fmt(r.ceiling):'—'}</div>
+            <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:${(r.effectiveCeiling||0)>(r.ceiling||0)?'var(--red)':(r.effectiveCeiling||0)<(r.ceiling||0)?'var(--green)':'var(--muted2)'}">${r.hasData?fmt(r.effectiveCeiling):'—'}</div>
+            <div style="text-align:right"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:${r.risk==='High'||r.risk==='Spike risk'?'rgba(248,113,113,.1)':r.risk==='Moderate'?'rgba(251,191,36,.08)':'var(--s2)'};color:${r.risk==='High'||r.risk==='Spike risk'?'var(--red)':r.risk==='Moderate'?'var(--amber)':'var(--muted2)'}">${r.risk}</span></div>
+          </div>`).join('')}
+      </div>
+    </div>
+    ${budgetWarn?`<div class="bc-budget-warning">⚠ This bid leaves only ${fmt(wouldLeave)} remaining — consider whether this player is worth the budget commitment.</div>`:
+      `<div class="bc-budget-ok">✓ Leaves ${fmt(wouldLeave)} remaining after this bid.</div>`}
+  `;
+}
+
+function setBsPos(pos, strength){
+  _bsState.positions[pos]=strength;
+  ['weak','ok','strong'].forEach(s=>{
+    const btn=document.getElementById(`bs-${pos}-${s}`);
+    if(!btn)return;
+    btn.className='bs-opt'+(s===strength?s==='strong'?' active-strong':s==='weak'?' active-weak':' active':'');
+  });
+  updateBudgetStrategy();
+}
+
+function setBsAgg(agg){
+  _bsState.aggression=agg;
+  ['conservative','balanced','aggressive'].forEach(a=>{
+    const btn=document.getElementById('bs-agg-'+a);
+    if(btn) btn.className='bs-opt'+(a===agg?' active':'');
+  });
+  updateBudgetStrategy();
+}
+
+function updateBudgetStrategy(){
+  const el=document.getElementById('bs-result');
+  if(!el)return;
+  const {phases,insights,winnerPhaseSpend}=calcBudgetStrategy();
+
+  el.innerHTML=`
+    <div class="bs-phase-grid">
+      <div class="bs-phase">
+        <div class="bs-phase-val">${fmt(phases.early)}</div>
+        <div class="bs-phase-lbl">Early</div>
+        <div class="bs-phase-sub">Wks 1–6</div>
+      </div>
+      <div class="bs-phase">
+        <div class="bs-phase-val">${fmt(phases.mid)}</div>
+        <div class="bs-phase-lbl">Mid</div>
+        <div class="bs-phase-sub">Wks 7–12</div>
+      </div>
+      <div class="bs-phase">
+        <div class="bs-phase-val">${fmt(phases.playoff)}</div>
+        <div class="bs-phase-lbl">Playoff</div>
+        <div class="bs-phase-sub">Wks 13–18</div>
+      </div>
+      <div class="bs-phase">
+        <div class="bs-phase-val" style="color:var(--muted2)">${fmt(phases.buffer)}</div>
+        <div class="bs-phase-lbl">Buffer</div>
+        <div class="bs-phase-sub">Reserve</div>
+      </div>
+    </div>
+    <div class="bs-insight">${insights.map(i=>`<div style="margin-bottom:5px">• ${i}</div>`).join('')}</div>
+
+    <div style="margin-top:10px;border-top:.5px solid var(--b1);padding-top:10px">
+      <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Benchmarks</div>
+
+      <div style="display:grid;grid-template-columns:1fr 52px 52px 52px;gap:6px;font-size:10px;margin-bottom:4px">
+        <div style="color:var(--muted)"></div>
+        <div style="text-align:right;color:var(--muted)">Early</div>
+        <div style="text-align:right;color:var(--muted)">Mid</div>
+        <div style="text-align:right;color:var(--muted)">Playoff</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 52px 52px 52px;gap:6px;font-size:11px;padding:6px 0;border-bottom:.5px solid var(--b1);align-items:center">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:var(--lime);flex-shrink:0"></div><span>Recommended</span></div>
+        <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--lime)">${fmt(phases.early)}</div>
+        <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--lime)">${fmt(phases.mid)}</div>
+        <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:var(--lime)">${fmt(phases.playoff)}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 52px 52px 52px;gap:6px;font-size:11px;padding:6px 0;border-bottom:.5px solid var(--b1);align-items:center">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:var(--blue);flex-shrink:0"></div><span>Your 2025</span></div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(my25.early)}</div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(my25.mid)}</div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(my25.playoff)}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 52px 52px 52px;gap:6px;font-size:11px;padding:6px 0;border-bottom:.5px solid var(--b1);align-items:center">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:rgba(96,165,250,.4);flex-shrink:0"></div><span>Your 2024</span></div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(my24.early)}</div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(my24.mid)}</div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(my24.playoff)}</div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 52px 52px 52px;gap:6px;font-size:11px;padding:6px 0;align-items:center">
+        <div style="display:flex;align-items:center;gap:6px"><div style="width:8px;height:8px;border-radius:50%;background:var(--amber);flex-shrink:0"></div><span style="color:var(--muted2)">Top-4 avg 2025</span></div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(top4avg.early)}</div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(top4avg.mid)}</div>
+        <div style="text-align:right;color:var(--muted2)">${fmt(top4avg.playoff)}</div>
+      </div>
+    </div>`;
+}
+
+function saveManagerNote(name){
+  const ta=document.getElementById('mn-'+name);
+  const saved=document.getElementById('mn-saved-'+name);
+  if(!ta)return;
+  saveNote(name, ta.value);
+  if(saved){ saved.style.opacity='1'; setTimeout(()=>saved.style.opacity='0', 2000); }
+}
 
 // ── RIVALRY MATRIX ───────────────────────────────────────────────────────────
 function buildRivalryData(season){
