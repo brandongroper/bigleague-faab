@@ -1,0 +1,1913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Big League — FAAB 2025</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
+
+:root {
+  --bg:#0d0d0f;--s1:#141417;--s2:#1c1c22;--s3:#222228;
+  --b1:rgba(255,255,255,0.06);--b2:rgba(255,255,255,0.11);--b3:rgba(255,255,255,0.18);
+  --text:#ededeb;--muted:#6b6b74;--muted2:#9a9aa4;
+  --lime:#c8f135;--blue:#60a5fa;--red:#f87171;
+  --amber:#fbbf24;--green:#34d399;--purple:#a78bfa;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{background:var(--bg);color:var(--text);font-family:'DM Mono',monospace;font-size:13px;line-height:1.5;min-height:100vh}
+.page{max-width:1100px;margin:0 auto;padding:2rem 1.25rem 5rem}
+
+.topbar{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:2.5rem;flex-wrap:wrap;gap:12px}
+.eyebrow{font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:var(--lime);margin-bottom:6px}
+h1{font-family:'Syne',sans-serif;font-size:clamp(26px,4vw,38px);font-weight:800;line-height:1.05}
+h1 .line2{display:block;font-size:clamp(20px,3vw,28px);font-weight:700;color:var(--lime);margin-top:2px}
+h1 em{color:var(--lime);font-style:normal}
+.nav-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.nav-tab{font-size:11px;padding:6px 14px;border-radius:6px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s}
+.nav-tab:hover{border-color:var(--b3);color:var(--text)}
+.nav-tab.active{background:var(--lime);color:#0d0d0f;border-color:var(--lime);font-weight:500}
+
+.loader{text-align:center;padding:5rem 0}
+.spin{display:inline-block;width:22px;height:22px;border:2px solid var(--b2);border-top-color:var(--lime);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.load-msg{color:var(--muted2);font-size:12px}
+.progress{width:220px;height:3px;background:var(--s2);border-radius:3px;margin:12px auto 0;overflow:hidden}
+.progress-fill{height:100%;background:var(--lime);border-radius:3px;transition:width .4s}
+
+.sec{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);border-bottom:.5px solid var(--b1);padding-bottom:7px;margin:2rem 0 1rem}
+
+.sum-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.sum-card{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.1rem}
+.sum-val{font-family:'Syne',sans-serif;font-size:24px;font-weight:700;color:var(--lime)}
+.sum-lbl{font-size:10px;color:var(--muted);margin-top:3px;letter-spacing:.06em;text-transform:uppercase}
+.sum-sub{font-size:10px;color:var(--muted2);margin-top:2px}
+
+.wk-wrap{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1.1rem 1.25rem}
+.wk-head{font-size:11px;color:var(--muted2);margin-bottom:12px}
+.wk-bars{display:flex;align-items:flex-end;gap:4px;height:110px;padding-top:20px}
+.wk-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;min-width:0;cursor:pointer;position:relative}
+.wk-col:hover .wk-bar{opacity:1}
+.wk-col.selected .wk-bar{background:var(--lime);opacity:1}
+.wk-bar{width:100%;border-radius:2px 2px 0 0;background:var(--lime);opacity:.5;min-height:2px;transition:opacity .15s}
+.wk-lbl{font-size:8px;color:var(--muted)}
+.wk-amt{font-size:8px;color:var(--muted2);position:absolute;top:-16px;left:50%;transform:translateX(-50%);white-space:nowrap}
+
+.wk-detail{background:var(--s1);border:.5px solid var(--b2);border-radius:10px;padding:1.1rem 1.25rem;margin-top:10px}
+.wk-detail-title{font-family:'Syne',sans-serif;font-size:14px;font-weight:700;margin-bottom:4px;color:var(--lime)}
+.wk-detail-sub{font-size:11px;color:var(--muted2);margin-bottom:14px}
+
+/* Auction block — one per player bid on */
+.auction-block{background:var(--s2);border-radius:8px;margin-bottom:8px;overflow:hidden}
+.auction-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;border-bottom:.5px solid var(--b1)}
+.auction-player{font-size:13px;font-weight:500;color:var(--text)}
+.auction-pos{font-size:9px;padding:2px 6px;border-radius:3px;background:var(--bg);margin-right:8px}
+.auction-bids-count{font-size:10px;color:var(--muted)}
+.auction-bids{padding:4px 0}
+.auction-bid-row{display:grid;grid-template-columns:1fr 90px 60px 70px;gap:8px;align-items:center;padding:5px 12px;font-size:11px}
+.auction-bid-row.won{background:rgba(200,241,53,0.05)}
+.auction-bid-row.won .bid-mgr{color:var(--lime)}
+.bid-mgr{color:var(--muted2)}
+.bid-mgr.you{color:var(--blue)}
+.bid-drop-sm{font-size:10px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.bid-val{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;text-align:right}
+.bid-result-tag{font-size:9px;padding:2px 7px;border-radius:3px;text-align:center}
+.tag-won{background:rgba(200,241,53,.12);color:var(--lime)}
+.tag-lost{background:rgba(248,113,113,.08);color:var(--red)}
+.tag-lost-tie{background:rgba(251,191,36,.08);color:var(--amber)}
+
+.pos-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(90px,1fr));gap:8px}
+.pos-card{background:var(--s1);border:.5px solid var(--b1);border-radius:8px;padding:10px;text-align:center}
+.pos-name{font-size:10px;color:var(--muted);margin-bottom:3px}
+.pos-val{font-family:'Syne',sans-serif;font-size:18px;font-weight:700}
+.pos-sub{font-size:9px;color:var(--muted);margin-top:2px}
+
+.lb{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;overflow:hidden}
+.lb-row{display:grid;grid-template-columns:22px 1fr 58px 44px 54px 62px 70px;gap:6px;align-items:center;padding:9px 1.1rem;border-bottom:.5px solid var(--b1);font-size:11px;cursor:pointer;transition:background .12s}
+.lb-row:hover{background:var(--s2)}
+.lb-row:last-child{border-bottom:none}
+.lb-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--s2);cursor:default}
+.lb-hdr:hover{background:var(--s2)}
+.lb-r{text-align:right}
+
+.c-lime{color:var(--lime)}.c-blue{color:var(--blue)}.c-red{color:var(--red)}
+.c-amber{color:var(--amber)}.c-green{color:var(--green)}.c-muted{color:var(--muted2)}.c-purple{color:var(--purple)}
+
+.mgr-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px}
+.mgr-card{background:var(--s1);border:.5px solid var(--b1);border-radius:12px;padding:1rem 1.1rem;cursor:pointer;transition:border-color .15s,transform .12s}
+.mgr-card:hover{border-color:var(--b3);transform:translateY(-1px)}
+.mgr-card.winner{border-color:rgba(200,241,53,.4)}
+.mgr-card.you{border-color:rgba(96,165,250,.4)}
+.mgr-card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.mgr-card-name{font-family:'Syne',sans-serif;font-size:14px;font-weight:700}
+.badges{display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end}
+.bdg{font-size:9px;padding:2px 7px;border-radius:4px;letter-spacing:.05em;text-transform:uppercase}
+.bdg-lime{background:rgba(200,241,53,.12);color:var(--lime)}
+.bdg-blue{background:rgba(96,165,250,.12);color:var(--blue)}
+.bdg-gray{background:var(--s2);color:var(--muted2)}
+.faab-track{height:3px;background:var(--s2);border-radius:3px;overflow:hidden;margin:8px 0}
+.faab-fill{height:100%;background:var(--lime);border-radius:3px}
+.mgr-card-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:8px}
+.met{background:var(--s2);border-radius:6px;padding:5px 4px;text-align:center}
+.met-v{font-size:13px;font-weight:500}
+.met-l{font-size:9px;color:var(--muted);margin-top:1px}
+.mgr-card-hint{font-size:10px;color:var(--muted);margin-top:10px;text-align:center}
+
+.detail-back{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--muted2);cursor:pointer;margin-bottom:1.5rem;padding:5px 10px;border:.5px solid var(--b1);border-radius:6px;background:var(--s1);transition:all .15s}
+.detail-back:hover{color:var(--text);border-color:var(--b2)}
+.detail-header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1.5rem}
+.detail-name{font-family:'Syne',sans-serif;font-size:clamp(20px,4vw,30px);font-weight:800}
+.detail-metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:1.5rem}
+.dmet{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:.85rem 1rem}
+.dmet-v{font-family:'Syne',sans-serif;font-size:22px;font-weight:700}
+.dmet-l{font-size:10px;color:var(--muted);margin-top:3px;text-transform:uppercase;letter-spacing:.06em}
+
+.bid-table{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;overflow:hidden;margin-bottom:1rem}
+.bid-table-row{display:grid;grid-template-columns:36px 32px 1fr 120px 55px 50px;gap:8px;align-items:center;padding:8px 1.1rem;border-bottom:.5px solid var(--b1);font-size:11px}
+.bid-table-row:last-child{border-bottom:none}
+.bid-table-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--s2)}
+.bid-pos-cell{font-size:9px;padding:1px 5px;border-radius:3px;background:var(--s2);text-align:center}
+.bid-amt-cell{font-family:'Syne',sans-serif;font-weight:700;font-size:13px;text-align:right}
+.bid-drop-cell{color:var(--muted);font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+.tendency-box{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.25rem}
+.tendency-insight{display:flex;gap:12px;padding:10px 0;border-bottom:.5px solid var(--b1);align-items:flex-start}
+.tendency-insight:last-child{border-bottom:none}
+.tendency-icon{font-size:16px;flex-shrink:0;width:24px;text-align:center;margin-top:1px}
+.tendency-label{font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:3px}
+.tendency-text{font-size:12px;color:var(--muted2);line-height:1.7}
+.tendency-text strong{color:var(--text);font-weight:500}
+
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:600px){.two-col{grid-template-columns:1fr}}
+
+.failed-box{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;overflow:hidden}
+.fail-row{display:grid;grid-template-columns:36px 1fr 55px;gap:8px;align-items:center;padding:7px 1.1rem;border-bottom:.5px solid var(--b1);font-size:11px}
+.fail-row:last-child{border-bottom:none}
+.fail-row.hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--s2)}
+
+.pos-spend-box{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.25rem}
+.pos-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.pos-bar-row:last-child{margin-bottom:0}
+.pos-bar-label{width:28px;font-size:10px}
+.pos-bar-track{flex:1;height:6px;background:var(--s2);border-radius:3px;overflow:hidden}
+.pos-bar-fill{height:100%;border-radius:3px}
+.pos-bar-val{width:36px;text-align:right;font-size:10px;font-family:'Syne',sans-serif;font-weight:700}
+
+/* Weekly view */
+.week-nav{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1rem}
+.week-btn{font-size:10px;padding:4px 10px;border-radius:5px;border:.5px solid var(--b1);background:var(--s1);color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s;position:relative}
+.week-btn:hover{border-color:var(--b2);color:var(--text)}
+.week-btn.active{background:var(--lime);color:#0d0d0f;border-color:var(--lime);font-weight:500}
+.week-btn.has-activity{border-color:rgba(200,241,53,.3)}
+
+.week-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:1rem}
+
+.filter-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem;align-items:center}
+.filter-lbl{font-size:10px;color:var(--muted);margin-right:4px}
+.filter-btn{font-size:10px;padding:3px 10px;border-radius:5px;border:.5px solid var(--b1);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s}
+.filter-btn:hover{color:var(--text)}
+.filter-btn.active{background:var(--s2);color:var(--text);border-color:var(--b2)}
+
+.overbid-wrap{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.25rem;margin-bottom:.5rem}
+.overbid-table{width:100%}
+.overbid-row{display:grid;grid-template-columns:32px 30px 1fr 60px 55px 120px 80px;gap:8px;align-items:center;padding:7px 0;border-bottom:.5px solid var(--b1);font-size:11px}
+.overbid-row:last-child{border-bottom:none}
+.overbid-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding-bottom:8px;border-bottom:.5px solid var(--b2)}
+
+.note{font-size:10px;color:var(--muted);margin-top:2rem;font-style:italic;line-height:1.6}
+.failed-enriched-table{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;overflow:hidden}
+.fe-row{display:grid;grid-template-columns:36px 30px 1fr 70px 110px 65px 70px;gap:8px;align-items:center;padding:8px 1.1rem;border-bottom:.5px solid var(--b1);font-size:11px}
+.fe-row:last-child{border-bottom:none}
+.fe-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--s2);padding-top:8px;padding-bottom:8px}
+
+.yoy-table{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;overflow:hidden;margin-bottom:1rem}
+.yoy-row{display:grid;grid-template-columns:1fr 70px 70px 64px 54px 54px 58px 58px 1fr;gap:6px;align-items:center;padding:9px 1.1rem;border-bottom:.5px solid var(--b1);font-size:11px;cursor:pointer;transition:background .12s}
+.yoy-row:hover{background:var(--s2)}
+.yoy-row:last-child{border-bottom:none}
+.yoy-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--s2);cursor:default}
+.yoy-hdr:hover{background:var(--s2)}
+.yoy-bars-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;margin-bottom:.5rem}
+.yoy-bar-card{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.1rem;cursor:pointer;transition:border-color .15s}
+.yoy-bar-card:hover{border-color:var(--b2)}
+.view{display:none}.view.active{display:block}
+
+/* Rivalry matrix */
+.rivalry-matrix{overflow-x:auto;margin-bottom:1.5rem}
+.rm-table{border-collapse:collapse;min-width:100%}
+.rm-cell{width:70px;height:54px;text-align:center;vertical-align:middle;border:.5px solid var(--b1);font-size:10px;position:relative;cursor:pointer;transition:filter .12s}
+.rm-cell:hover{filter:brightness(1.3)}
+.rm-cell.header{background:var(--s2);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;cursor:default;width:90px;text-align:right;padding-right:8px}
+.rm-cell.header:hover{filter:none}
+.rm-cell.col-header{background:var(--s2);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;cursor:default;height:36px}
+.rm-cell.col-header:hover{filter:none}
+.rm-cell.self{background:var(--bg);cursor:default}
+.rm-cell.self:hover{filter:none}
+.rm-win{font-family:'Syne',sans-serif;font-weight:700;font-size:13px}
+.rm-sub{font-size:9px;color:var(--muted);margin-top:1px}
+
+/* Drill-down modal overlay */
+.rivalry-detail{background:var(--s1);border:.5px solid var(--b2);border-radius:10px;padding:1.1rem 1.25rem;margin-top:1rem}
+.rivalry-detail-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:12px}
+.rd-row{display:grid;grid-template-columns:36px 30px 1fr 70px 70px 60px;gap:8px;align-items:center;padding:7px 0;border-bottom:.5px solid var(--b1);font-size:11px}
+.rd-row:last-child{border-bottom:none}
+.rd-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding-bottom:8px;border-bottom:.5px solid var(--b2)}
+
+/* Budget pacing chart */
+.pacing-wrap{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:.5rem}
+.pacing-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.pacing-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted2);cursor:pointer}
+.pacing-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pacing-svg{width:100%;overflow:visible}
+
+/* Most contested */
+.contested-table{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;overflow:hidden}
+.ct-row{display:grid;grid-template-columns:28px 30px 1fr 44px 60px 1fr;gap:8px;align-items:center;padding:8px 1.1rem;border-bottom:.5px solid var(--b1);font-size:11px}
+.ct-row:last-child{border-bottom:none}
+.ct-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--s2)}
+</style>
+</head>
+<body>
+<div class="page">
+  <div class="topbar">
+    <div>
+      <div class="eyebrow">2025 season · waiver wire</div>
+      <h1>The Big League<span class="line2">FAAB Intelligence</span></h1>
+    </div>
+    <div class="nav-tabs">
+      <button class="nav-tab active" onclick="showView('overview')">Overview</button>
+      <button class="nav-tab" onclick="showView('managers')">Managers</button>
+      <button class="nav-tab" onclick="showView('weekly')">Weekly</button>
+      <button class="nav-tab" onclick="showView('rivals')">Rivals</button>
+      <button class="nav-tab" onclick="showView('history')">2024 vs 2025</button>
+    </div>
+  </div>
+
+  <div id="loader">
+    <div class="loader">
+      <div><div class="spin"></div></div>
+      <div class="load-msg" id="load-msg">Connecting to Sleeper...</div>
+      <div class="progress"><div class="progress-fill" id="prog" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <div id="views" style="display:none">
+    <!-- OVERVIEW -->
+    <div class="view active" id="view-overview">
+      <div class="sec">league summary</div>
+      <div class="sum-grid" id="sum-grid"></div>
+      <div class="sec">FAAB by week — click a bar to preview</div>
+      <div class="wk-wrap">
+        <div class="wk-head">Total dollars spent league-wide per waiver period</div>
+        <div class="wk-bars" id="wk-bars"></div>
+      </div>
+      <div id="wk-detail-panel"></div>
+      <div class="sec">position spending — league-wide</div>
+      <div class="pos-grid" id="pos-grid"></div>
+      <div class="sec">FAAB leaderboard — click a row to view manager</div>
+      <div class="lb" id="lb"></div>
+      <div class="sec">budget pacing — remaining FAAB by week</div>
+      <div id="pacing-2025"></div>
+      <div class="sec">most contested players — 2025 season</div>
+      <div id="contested-2025"></div>
+    </div>
+
+    <!-- MANAGERS -->
+    <div class="view" id="view-managers">
+      <div id="mgr-grid-view">
+        <div class="sec">all managers — click to drill in</div>
+        <div class="mgr-grid" id="mgr-grid"></div>
+      </div>
+      <div id="mgr-detail-view" style="display:none"></div>
+    </div>
+
+    <!-- WEEKLY -->
+    <div class="view" id="view-weekly">
+      <div class="sec">weekly waiver results — full auction view</div>
+      <div class="week-nav" id="week-nav"></div>
+      <div id="week-filters" style="display:none">
+        <div class="filter-row">
+          <span class="filter-lbl">Show:</span>
+          <button class="filter-btn active" onclick="setFilter('all',this)">All bids</button>
+          <button class="filter-btn" onclick="setFilter('won',this)">Won only</button>
+          <button class="filter-btn" onclick="setFilter('contested',this)">Contested only</button>
+        </div>
+      </div>
+      <div id="week-summary" class="week-summary"></div>
+      <div id="week-content"></div>
+    </div>
+
+    <!-- RIVALS -->
+    <div class="view" id="view-rivals">
+      <div class="sec">rivalry matrix — contested auction head-to-head records</div>
+      <div id="rivals-content"><div style="color:var(--muted);font-size:12px;padding:2rem 0;text-align:center">Loading...</div></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="view" id="view-history">
+      <div class="sec">2024 vs 2025 — year over year</div>
+      <div id="history-content"><div style="color:var(--muted);font-size:12px;padding:2rem 0;text-align:center">Loading historical data...</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const LEAGUE='1257465455417757698',LEAGUE_2024='1128755808524730368';
+const BUDGET=100,WINNER='Shiv7',WINNER_2024='yloeub',YOU='BGroper';
+const ROSTER_MAP={1:'ablauer',2:'Tennial',3:'BGroper',4:'Rabert',5:'BFeiden',6:'mziegler19',7:'zbrez89',8:'SolFloodstein',9:'Shiv7',10:'yloeub',11:'JosephHopmeyer',12:'smayers'};
+const POS_COLOR={RB:'var(--green)',WR:'var(--lime)',QB:'var(--purple)',TE:'var(--amber)',K:'var(--muted2)',DEF:'var(--muted2)'};
+const DEF_TEAMS=['ARI','ATL','BAL','BUF','CAR','CHI','CIN','CLE','DAL','DEN','DET','GB','HOU','IND','JAX','KC','LAC','LAR','LV','MIA','MIN','NE','NO','NYG','NYJ','PHI','PIT','SEA','SF','TB','TEN','WAS'];
+
+let APP={stats:{},weeklyData:{},posTotals:{},weekTotals:{},sorted:[],playerMap:{},
+         stats2024:{},weeklyData2024:{},weekTotals2024:{},posTotals2024:{}};
+let currentFilter='all';
+
+function setMsg(t){const e=document.getElementById('load-msg');if(e)e.textContent=t;}
+function setProg(p){const e=document.getElementById('prog');if(e)e.style.width=p+'%';}
+function fmt(n){return'$'+n;}
+function posColor(p){return POS_COLOR[p]||'var(--muted2)';}
+function bidColor(b){return b>=25?'c-red':b>=12?'c-amber':b>0?'c-green':'c-muted';}
+function nameClass(n){return n===WINNER?'c-lime':n===YOU?'c-blue':'';}
+function isDefTeam(pid){return DEF_TEAMS.includes(pid);}
+
+async function fetchJ(url){
+  const r=await fetch(url);
+  if(!r.ok)throw new Error('HTTP '+r.status);
+  return r.json();
+}
+
+function getPlayerName(pid){
+  if(isDefTeam(pid))return pid+' DEF';
+  return APP.playerMap[pid]?.name||'Player '+pid;
+}
+function getPlayerPos(pid){
+  if(isDefTeam(pid))return'DEF';
+  return APP.playerMap[pid]?.pos||'?';
+}
+
+function archetype(s){
+  const{totalSpent:sp,bidCount:bc,avgBid:ab,maxBid:mb,posSpend:ps}=s;
+  if(sp===0||bc===0)return'Set & Forget';
+  const tot=Math.max(sp,1);
+  const rb=(ps.RB||0)/tot,wr=(ps.WR||0)/tot,qb=(ps.QB||0)/tot;
+  if(mb>=30)return'Big Swinger';
+  if(qb>0.3)return'QB Streamer';
+  if(rb>0.55)return'RB Hoarder';
+  if(wr>0.55)return'WR Chaser';
+  if(bc>=10&&ab<7)return'Volume Streamer';
+  if(bc>=7&&ab>=10)return'Calculated Bidder';
+  if(bc>=5)return'Active Manager';
+  return'Selective Bidder';
+}
+
+function buildTendencies(name, s){
+  // Pulls real patterns from weekly bid data
+  const{totalSpent,bidCount,avgBid,maxBid,maxBidPlayer,maxBidWeek,posSpend,remainingFAAB,failedBids,totalAttempts,bids}=s;
+
+  if(bidCount===0&&totalAttempts===0){
+    return{
+      summary:`${name} placed zero waiver bids all season — a pure draft-and-hold manager.`,
+      tags:['Set & Forget','Zero wire activity'],
+      insights:[
+        {icon:'🔒', label:'Wire engagement', text:'No bids placed at any point in the season. Either had elite draft capital or was completely passive on waivers.'},
+        {icon:'💰', label:'FAAB remaining', text:`Finished with full budget intact — ${fmt(remainingFAAB??100)} unspent.`}
+      ]
+    };
+  }
+
+  const insights=[];
+  const tags=[];
+
+  // --- Bidding aggression ---
+  const winRate=totalAttempts>0?bidCount/totalAttempts:0;
+  const avgBidRound=Math.round(avgBid);
+  const budgetUsedPct=Math.round(totalSpent/BUDGET*100);
+
+  if(budgetUsedPct>=60){tags.push('Heavy spender');}
+  else if(budgetUsedPct<=15){tags.push('Budget hoarder');}
+  else{tags.push('Measured spender');}
+
+  insights.push({
+    icon:'💸',
+    label:'Spending aggression',
+    text: budgetUsedPct>=60
+      ? `Used <strong>${budgetUsedPct}%</strong> of their $100 budget (${fmt(totalSpent)}). Heavy deployment — willing to commit big to secure targets.`
+      : budgetUsedPct<=15
+      ? `Used only <strong>${budgetUsedPct}%</strong> of their budget (${fmt(totalSpent)}). Extremely conservative — either trusted their draft or didn't see value on the wire.`
+      : `Used <strong>${budgetUsedPct}%</strong> of their budget (${fmt(totalSpent)}) — measured approach, keeping powder dry while still engaging.`
+  });
+
+  // --- Win rate / overbidding ---
+  if(totalAttempts>bidCount){
+    const wr=Math.round(winRate*100);
+    const lostBids=failedBids.filter(b=>b.bid>0);
+    const $0losses=failedBids.filter(b=>b.bid===0);
+    if(wr>=75){
+      tags.push('Sharp bidder');
+      insights.push({icon:'🎯',label:'Bid accuracy',text:`Won <strong>${wr}%</strong> of bids placed (${bidCount}/${totalAttempts}). Very efficient — rarely wasted budget on unwinnable bids.`});
+    } else if(wr<=40){
+      tags.push('Often outbid');
+      insights.push({icon:'📉',label:'Bid accuracy',text:`Won only <strong>${wr}%</strong> of bids placed (${bidCount}/${totalAttempts}). Frequently outbid — either undervaluing targets or competing heavily against aggressive managers.`});
+    } else {
+      insights.push({icon:'🎯',label:'Bid accuracy',text:`Won <strong>${wr}%</strong> of bids placed (${bidCount}/${totalAttempts}).`});
+    }
+    if($0losses.length>0){
+      insights.push({icon:'⚡',label:'Priority claims',text:`Placed <strong>${$0losses.length}</strong> $0 bid${$0losses.length!==1?'s':''} — using waiver priority rather than FAAB to claim players. ${$0losses.length>=5?'Heavily reliant on priority ordering.':'Occasional use of priority when confident no one else wants the player.'}`});
+    }
+  }
+
+  // --- Contested behavior ---
+  // Find all auctions this manager was in, from weeklyData
+  let contestedWon=0, contestedLost=0, contestedTiedLost=0;
+  let outbidBy={}; // who beat them
+  let theyOutbid={}; // who they beat
+  Object.values(APP.weeklyData).forEach(wd=>{
+    (wd.players||[]).forEach(p=>{
+      const myBid=p.bids.find(b=>b.manager===name);
+      if(!myBid||p.bids.length<2)return; // only contested
+      const winner=p.bids.find(b=>b.status==='complete');
+      if(!winner)return;
+      if(myBid.status==='complete'){
+        contestedWon++;
+        // who did they beat?
+        p.bids.filter(b=>b.manager!==name&&b.status!=='complete').forEach(b=>{
+          theyOutbid[b.manager]=(theyOutbid[b.manager]||0)+1;
+        });
+      } else {
+        contestedLost++;
+        if(myBid.bid===winner.bid) contestedTiedLost++;
+        else {
+          outbidBy[winner.manager]=(outbidBy[winner.manager]||0)+1;
+        }
+      }
+    });
+  });
+
+  if(contestedWon+contestedLost>0){
+    const topRival=Object.entries(outbidBy).sort((a,b)=>b[1]-a[1])[0];
+    const topVictim=Object.entries(theyOutbid).sort((a,b)=>b[1]-a[1])[0];
+    tags.push(contestedWon>contestedLost?'Wins bidding wars':'Loses bidding wars');
+    insights.push({
+      icon:'⚔️',
+      label:'Contested auctions',
+      text:`In ${contestedWon+contestedLost} contested auctions: won <strong>${contestedWon}</strong>, lost <strong>${contestedLost}</strong>${contestedTiedLost>0?` (${contestedTiedLost} lost on priority tie)`:''}.`
+        +(topRival?` Most often outbid by <strong>${topRival[0]}</strong> (${topRival[1]}x).`:'')
+        +(topVictim?` Most often outbid <strong>${topVictim[0]}</strong> (${topVictim[1]}x).`:'')
+    });
+  }
+
+  // --- Big swing behavior ---
+  if(maxBid>=25){
+    tags.push('Big swinger');
+    insights.push({icon:'🚀',label:'Splash moves',text:`Biggest single bid: <strong>${fmt(maxBid)}</strong> on <strong>${maxBidPlayer}</strong> (Wk ${maxBidWeek}) — that's <strong>${Math.round(maxBid/BUDGET*100)}%</strong> of the entire season budget in one shot.`});
+  } else if(maxBid>=15){
+    insights.push({icon:'🚀',label:'Biggest move',text:`Top bid was <strong>${fmt(maxBid)}</strong> on <strong>${maxBidPlayer}</strong> (Wk ${maxBidWeek}) — comfortable committing double-digit FAAB when needed.`});
+  } else if(maxBid>0){
+    tags.push('Low-bid style');
+    insights.push({icon:'🔽',label:'Bid ceiling',text:`Never bid more than <strong>${fmt(maxBid)}</strong> on any single player. Prefers spreading budget thin rather than going all-in on targets.`});
+  }
+
+  // --- Position tendencies ---
+  const posEntries=Object.entries(posSpend).sort((a,b)=>b[1]-a[1]);
+  if(posEntries.length>0&&totalSpent>0){
+    const top=posEntries[0];
+    const topPct=Math.round(top[1]/totalSpent*100);
+    if(topPct>=50) tags.push(`${top[0]}-focused`);
+    const posBreakdown=posEntries.map(([p,a])=>`${p} ${fmt(a)} (${Math.round(a/totalSpent*100)}%)`).join(' · ');
+    insights.push({icon:'📊',label:'Position spending',text:`Breakdown: <strong>${posBreakdown}</strong>.${topPct>=50?` Heavy tilt toward <strong>${top[0]}</strong> — likely addressing a specific positional need or belief in that market.`:''}`});
+  }
+
+  // --- Timing: early vs late season ---
+  const earlySpend=bids.filter(b=>b.week<=6).reduce((s,b)=>s+b.bid,0);
+  const midSpend=bids.filter(b=>b.week>6&&b.week<=12).reduce((s,b)=>s+b.bid,0);
+  const lateSpend=bids.filter(b=>b.week>12).reduce((s,b)=>s+b.bid,0);
+  if(totalSpent>0){
+    const earlyPct=Math.round(earlySpend/totalSpent*100);
+    const latePct=Math.round(lateSpend/totalSpent*100);
+    let timingText='';
+    if(earlyPct>=50){tags.push('Early-season spender');timingText=`Deployed <strong>${earlyPct}%</strong> of budget in Weeks 1–6. Front-loaded strategy — aggressive early to secure emerging starters, then coasted.`;}
+    else if(latePct>=40){tags.push('Playoff push spender');timingText=`Held back early and unleashed <strong>${latePct}%</strong> of budget in Weeks 13+. Saved budget for playoff-run adds when it matters most.`;}
+    else{timingText=`Spending was distributed across the season — Wks 1–6: ${fmt(earlySpend)}, Wks 7–12: ${fmt(midSpend)}, Wks 13+: ${fmt(lateSpend)}.`;}
+    insights.push({icon:'📅',label:'Spending timing',text:timingText});
+  }
+
+  // --- Drop behavior ---
+  const droppedPlayers=bids.filter(b=>b.drop).map(b=>b.drop);
+  const noDrop=bids.filter(b=>!b.drop).length;
+  if(bids.length>0){
+    if(noDrop/bids.length>=0.5){
+      insights.push({icon:'📋',label:'Roster management',text:`<strong>${noDrop}</strong> of ${bids.length} winning bids were made without dropping anyone — frequently adding to an open roster spot rather than making a swap.`});
+    } else if(droppedPlayers.length>0){
+      insights.push({icon:'🔄',label:'Roster turnover',text:`Dropped a player in <strong>${droppedPlayers.length}</strong> of ${bids.length} winning pickups — actively churning the roster rather than stockpiling.`});
+    }
+  }
+
+  // --- Failed bid patterns ---
+  if(failedBids.length>0){
+    const paidFails=failedBids.filter(b=>b.bid>0);
+    const topFail=[...failedBids].sort((a,b)=>b.bid-a.bid)[0];
+    insights.push({icon:'❌',label:'Failed bids',text:`Lost <strong>${failedBids.length}</strong> auction${failedBids.length!==1?'s':''} total${paidFails.length>0?`, including <strong>${paidFails.length}</strong> where real money was committed`:''}. Biggest loss: <strong>${fmt(topFail.bid)}</strong> on <strong>${topFail.player}</strong> (Wk ${topFail.week}).`});
+  }
+
+  // --- Remaining FAAB ---
+  if(remainingFAAB!==null){
+    const remPct=Math.round(remainingFAAB/BUDGET*100);
+    insights.push({
+      icon:'🏦',
+      label:'Budget efficiency',
+      text: remainingFAAB>=50
+        ? `Left <strong>${fmt(remainingFAAB)}</strong> (${remPct}%) unspent. Significant leftover suggests missed opportunities — either overly cautious or felt the wire had nothing worth bidding on.`
+        : remainingFAAB<=10
+        ? `Nearly drained at <strong>${fmt(remainingFAAB)}</strong> (${remPct}%) remaining. Committed fully to the wire — whether that paid off depends on the quality of adds.`
+        : `Finished with <strong>${fmt(remainingFAAB)}</strong> (${remPct}%) remaining — reasonable reserve heading into the stretch.`
+    });
+  }
+
+  const summary=`${name} — ${archetype(s)} · ${bidCount} winning bid${bidCount!==1?'s':''} · ${fmt(totalSpent)} spent · ${fmt(remainingFAAB??0)} remaining`;
+  return{summary,tags,insights};
+}
+
+function renderTendencies(name,s){
+  const t=buildTendencies(name,s);
+  return`
+    <div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:5px">
+      ${t.tags.map(tag=>`<span class="bdg bdg-gray" style="font-size:10px;padding:3px 9px">${tag}</span>`).join('')}
+    </div>
+    ${t.insights.map(ins=>`
+      <div class="tendency-insight">
+        <div class="tendency-icon">${ins.icon}</div>
+        <div>
+          <div class="tendency-label">${ins.label}</div>
+          <div class="tendency-text">${ins.text}</div>
+        </div>
+      </div>`).join('')}`;
+}
+
+function showView(v){
+  document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.nav-tab').forEach((t,i)=>{
+    t.classList.toggle('active',['overview','managers','weekly','rivals','history'][i]===v);
+  });
+  if(v==='managers'){
+    document.getElementById('mgr-grid-view').style.display='block';
+    document.getElementById('mgr-detail-view').style.display='none';
+  }
+  if(v==='history') renderHistory();
+  if(v==='rivals') renderRivals();
+}
+
+function setFilter(f,btn){
+  currentFilter=f;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  // re-render current week
+  const activeBtn=document.querySelector('.week-btn.active');
+  if(activeBtn)renderWeek(parseInt(activeBtn.dataset.week));
+}
+
+function renderWeek(week){
+  // Mark active tab
+  document.querySelectorAll('.week-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.week)===week));
+
+  const data=APP.weeklyData[week]||{players:[]};
+  const allPlayers=data.players||[];
+
+  // Summary
+  const wonBids=allPlayers.flatMap(p=>p.bids.filter(b=>b.status==='complete'));
+  const totalBids=allPlayers.flatMap(p=>p.bids);
+  const weekSpend=wonBids.reduce((s,b)=>s+b.bid,0);
+  const contested=allPlayers.filter(p=>p.bids.length>1);
+
+  document.getElementById('week-summary').innerHTML=`
+    <div class="sum-card"><div class="sum-val">${fmt(weekSpend)}</div><div class="sum-lbl">Week ${week} spend</div></div>
+    <div class="sum-card"><div class="sum-val">${wonBids.length}</div><div class="sum-lbl">Players added</div></div>
+    <div class="sum-card"><div class="sum-val">${totalBids.length}</div><div class="sum-lbl">Total bids placed</div></div>
+    <div class="sum-card"><div class="sum-val">${contested.length}</div><div class="sum-lbl">Contested players</div></div>`;
+
+  document.getElementById('week-filters').style.display='flex';
+
+  // Filter players
+  let players=allPlayers;
+  if(currentFilter==='won') players=allPlayers.filter(p=>p.bids.some(b=>b.status==='complete'));
+  if(currentFilter==='contested') players=allPlayers.filter(p=>p.bids.length>1);
+
+  if(!players.length){
+    document.getElementById('week-content').innerHTML=`<div style="font-size:12px;color:var(--muted);padding:1rem 0">No waiver activity in Week ${week}.</div>`;
+    return;
+  }
+
+  // Sort: contested first, then by winning bid desc
+  players=players.slice().sort((a,b)=>{
+    const aWon=a.bids.find(x=>x.status==='complete');
+    const bWon=b.bids.find(x=>x.status==='complete');
+    if(b.bids.length!==a.bids.length)return b.bids.length-a.bids.length;
+    return(bWon?.bid||0)-(aWon?.bid||0);
+  });
+
+  document.getElementById('week-content').innerHTML=players.map(p=>{
+    const wonBid=p.bids.find(b=>b.status==='complete');
+    const sortedBids=[...p.bids].sort((a,b)=>b.bid-a.bid);
+    const isContested=p.bids.length>1;
+    const posC=posColor(p.pos);
+
+    return`<div class="auction-block">
+      <div class="auction-header">
+        <div style="display:flex;align-items:center">
+          <span class="auction-pos" style="color:${posC}">${p.pos}</span>
+          <span class="auction-player">${p.name}</span>
+          ${isContested?`<span style="font-size:9px;background:rgba(251,191,36,.1);color:var(--amber);padding:2px 6px;border-radius:3px;margin-left:8px">${p.bids.length} bids</span>`:''}
+        </div>
+        <span class="auction-bids-count">${wonBid?`won by ${wonBid.manager} · ${fmt(wonBid.bid)}`:'unclaimed'}</span>
+      </div>
+      <div class="auction-bids">
+        ${sortedBids.map(b=>{
+          const isWon=b.status==='complete';
+          const isTie=!isWon&&b.bid===wonBid?.bid;
+          return`<div class="auction-bid-row ${isWon?'won':''}">
+            <div class="bid-mgr ${b.manager===YOU?'you':''} ${isWon?nameClass(b.manager):''}">${b.manager}${b.manager===WINNER?' 🏆':b.manager===YOU?' ◀':''}</div>
+            <div class="bid-drop-sm">${b.drop?'↓ '+b.drop:''}</div>
+            <div class="bid-val ${bidColor(b.bid)}">${fmt(b.bid)}</div>
+            <div><span class="bid-result-tag ${isWon?'tag-won':isTie?'tag-lost-tie':'tag-lost'}">${isWon?'✓ won':isTie?'tied — priority':'✗ lost'}</span></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function renderOverviewWeekDetail(week){
+  document.querySelectorAll('.wk-col').forEach(el=>el.classList.remove('selected'));
+  const col=document.getElementById('wkcol-'+week);
+  if(col)col.classList.add('selected');
+
+  const data=APP.weeklyData[week]||{players:[]};
+  const players=data.players||[];
+  const wonBids=players.flatMap(p=>p.bids.filter(b=>b.status==='complete'));
+  const weekSpend=wonBids.reduce((s,b)=>s+b.bid,0);
+  const contested=players.filter(p=>p.bids.length>1);
+
+  if(!players.length){document.getElementById('wk-detail-panel').innerHTML='';return;}
+
+  const top=players.slice().sort((a,b)=>{
+    const aw=a.bids.find(x=>x.status==='complete');
+    const bw=b.bids.find(x=>x.status==='complete');
+    return(bw?.bid||0)-(aw?.bid||0);
+  }).slice(0,8);
+
+  document.getElementById('wk-detail-panel').innerHTML=`
+    <div class="wk-detail">
+      <div class="wk-detail-title">Week ${week} — ${fmt(weekSpend)} spent · ${wonBids.length} adds · ${contested.length} contested</div>
+      <div class="wk-detail-sub">Top auctions · <span style="cursor:pointer;color:var(--lime);text-decoration:underline" onclick="goToWeek(${week})">See all ${players.length} players →</span></div>
+      ${top.map(p=>{
+        const wonBid=p.bids.find(b=>b.status==='complete');
+        const sortedBids=[...p.bids].sort((a,b)=>b.bid-a.bid);
+        const posC=posColor(p.pos);
+        return`<div class="auction-block">
+          <div class="auction-header">
+            <div style="display:flex;align-items:center">
+              <span class="auction-pos" style="color:${posC}">${p.pos}</span>
+              <span class="auction-player">${p.name}</span>
+              ${p.bids.length>1?`<span style="font-size:9px;background:rgba(251,191,36,.1);color:var(--amber);padding:2px 6px;border-radius:3px;margin-left:8px">${p.bids.length} bids</span>`:''}
+            </div>
+            <span class="auction-bids-count">${wonBid?`${wonBid.manager} · ${fmt(wonBid.bid)}`:'—'}</span>
+          </div>
+          <div class="auction-bids">
+            ${sortedBids.map(b=>{
+              const isWon=b.status==='complete';
+              const isTie=!isWon&&b.bid===wonBid?.bid;
+              return`<div class="auction-bid-row ${isWon?'won':''}">
+                <div class="bid-mgr ${b.manager===YOU?'you':''} ${isWon?nameClass(b.manager):''}">${b.manager}</div>
+                <div class="bid-drop-sm">${b.drop?'↓ '+b.drop:''}</div>
+                <div class="bid-val ${bidColor(b.bid)}">${fmt(b.bid)}</div>
+                <div><span class="bid-result-tag ${isWon?'tag-won':isTie?'tag-lost-tie':'tag-lost'}">${isWon?'✓ won':isTie?'tied':'✗ lost'}</span></div>
+              </div>`;
+            }).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('wk-detail-panel').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function goToWeek(week){
+  showView('weekly');
+  setTimeout(()=>renderWeek(week),50);
+}
+
+function buildOverbidAnalysis(name, season=2025){
+  const wonContested=[];    // won vs at least one other bidder
+  const wonUncontested=[];  // won with zero other bidders
+  const weeklySource=season===2024?APP.weeklyData2024:APP.weeklyData;
+
+  Object.entries(weeklySource).forEach(([weekStr,wd])=>{
+    const week=parseInt(weekStr);
+    (wd.players||[]).forEach(p=>{
+      const myBid=p.bids.find(b=>b.manager===name&&b.status==='complete');
+      if(!myBid)return;
+      const otherBids=p.bids.filter(b=>b.manager!==name);
+
+      if(otherBids.length===0){
+        // Uncontested — assess waste based on position and bid amount
+        // $0 is always fine. Small bids are acceptable hedges against priority risk.
+        // Position-aware thresholds: DEF/K flag at $2+, QB/TE at $4+, RB/WR at $5+
+        const pos=p.pos||'?';
+        const isLowDemand=pos==='DEF'||pos==='K';
+        const isMidDemand=pos==='QB'||pos==='TE';
+        const wasteThreshold=isLowDemand?2:isMidDemand?4:5;
+        const isWaste=myBid.bid>=wasteThreshold;
+        const isHedge=myBid.bid>0&&myBid.bid<wasteThreshold;
+        // Wasted amount = everything above $1 (a $1 hedge has some value, $0 is always fine)
+        const wasted=isWaste?myBid.bid:0;
+        wonUncontested.push({
+          player:p.name, pos:p.pos, week,
+          won:myBid.bid, wasted, isWaste, isHedge, wasteThreshold
+        });
+      } else {
+        const secondBid=Math.max(...otherBids.map(b=>b.bid));
+        const margin=myBid.bid-secondBid;
+        const bothZero=myBid.bid===0&&secondBid===0;
+        wonContested.push({
+          player:p.name, pos:p.pos, week,
+          won:myBid.bid, second:secondBid, margin, bothZero,
+          wasPrecise: margin<=2&&myBid.bid>0,
+          wasWasteful: margin>=10,
+          // In a contest, minimum needed is secondBid+1 (or secondBid if won by priority)
+          // Wasted = amount above the minimum needed to win
+          wasted: bothZero?0:Math.max(margin-1,0)
+        });
+      }
+    });
+  });
+
+  const totalWins=wonContested.length+wonUncontested.length;
+  if(totalWins===0)return null;
+
+  // Contested margin stats — only real FAAB bids (not $0 vs $0)
+  const realContested=wonContested.filter(a=>!a.bothZero&&a.won>0);
+  const avgMargin=realContested.length>0
+    ? Math.round(realContested.reduce((s,a)=>s+a.margin,0)/realContested.length) : 0;
+
+  // Total waste = contested overpay + ALL uncontested FAAB spend
+  const contestedWaste=wonContested.reduce((s,a)=>s+a.wasted,0);
+  const uncontestedWaste=wonUncontested.reduce((s,a)=>s+a.wasted,0);
+  const totalWasted=contestedWaste+uncontestedWaste;
+
+  // Uncontested FAAB spend (only bids >$0, those are the real waste)
+  // Only flag uncontested spend that exceeds position-appropriate thresholds
+  const uncontestedFAAB=wonUncontested.filter(a=>a.isWaste);
+  const uncontestedHedges=wonUncontested.filter(a=>a.isHedge);
+  const worstUncontested=uncontestedFAAB.length>0
+    ? uncontestedFAAB.reduce((a,b)=>b.won>a.won?b:a) : null;
+
+  const preciseWins=wonContested.filter(a=>a.wasPrecise).length;
+  const wastefulWins=wonContested.filter(a=>a.wasWasteful).length;
+  const contestedRate=totalWins>0?Math.round(wonContested.length/totalWins*100):0;
+  const maxMargin=wonContested.length>0?wonContested.reduce((a,b)=>b.margin>a.margin?b:a):null;
+  const minRealMargin=realContested.length>0?realContested.reduce((a,b)=>b.margin<a.margin?b:a):null;
+
+  // Style label — uses position-aware waste thresholds, not raw uncontested spend
+  let style, styleColor, styleDesc;
+  const hasRealUncontestedWaste=uncontestedWaste>=8;
+  if(wonContested.length===0&&uncontestedWaste===0&&uncontestedHedges.length===0){
+    style='Wire Avoider'; styleColor='var(--muted2)';
+    styleDesc=`Won ${wonUncontested.length} uncontested auction${wonUncontested.length!==1?'s':''} at $0 — never faced real competition and never committed FAAB. Wire presence is minimal.`;
+  } else if(hasRealUncontestedWaste&&(realContested.length<3||avgMargin>8)){
+    style='Budget Burner'; styleColor='var(--red)';
+    styleDesc=`Spent <strong>${fmt(uncontestedWaste)}</strong> on uncontested pickups well above position-appropriate thresholds (DEF/K: $2+, TE/QB: $4+, RB/WR: $5+). Combined with contested overbidding, consistently bleeding budget unnecessarily.`;
+  } else if(hasRealUncontestedWaste){
+    style='Loose'; styleColor='var(--amber)';
+    styleDesc=`Reasonably competitive in contested auctions but overspent <strong>${fmt(uncontestedWaste)}</strong> on uncontested pickups above position-appropriate thresholds. Small bids on low-demand positions are fine — these weren't.`;
+  } else if(wonContested.length===0||(contestedRate<25&&realContested.length<3)){
+    style='Avoids Competition'; styleColor='var(--muted2)';
+    styleDesc=`Only ${contestedRate}% of wins came in contested auctions — primarily targets players nobody else wants. True bidding ceiling is unknown.`;
+  } else if(avgMargin<=2&&realContested.length>=3){
+    style='Surgical'; styleColor='var(--green)';
+    styleDesc='Wins contested auctions by the bare minimum — elite budget efficiency. Extremely difficult to outbid without major overpayment.';
+  } else if(avgMargin<=5){
+    style='Precise'; styleColor='var(--lime)';
+    styleDesc='Generally tight bidder in contested auctions — occasionally leaves a few dollars on the table but rarely bleeds budget.';
+  } else if(avgMargin<=12){
+    style='Loose'; styleColor='var(--amber)';
+    styleDesc='Noticeable tendency to overbid in contested auctions — leaving meaningful money on the table. Can be baited into overpaying.';
+  } else {
+    style='Overpayer'; styleColor='var(--red)';
+    styleDesc='Consistently overbids by large margins — easy to bait into burning budget. Others can win the same players for significantly less.';
+  }
+
+  return{wonContested,wonUncontested,realContested,uncontestedFAAB,uncontestedHedges,worstUncontested,
+    avgMargin,maxMargin,minRealMargin,preciseWins,wastefulWins,
+    contestedWaste,uncontestedWaste,totalWasted,contestedRate,totalWins,
+    style,styleColor,styleDesc};
+}
+
+function renderOverbidSection(name, season=2025){
+  const o=buildOverbidAnalysis(name, season);
+  if(!o)return`<div style="font-size:11px;color:var(--muted);padding:.5rem 0">No waiver wins to analyze.</div>`;
+
+  const{wonContested,wonUncontested,realContested,uncontestedFAAB,uncontestedHedges,worstUncontested,
+    avgMargin,maxMargin,minRealMargin,preciseWins,wastefulWins,
+    contestedWaste,uncontestedWaste,totalWasted,contestedRate,totalWins,
+    style,styleColor,styleDesc}=o;
+
+  const sorted=[...wonContested].sort((a,b)=>b.margin-a.margin);
+  const maxM=Math.max(...wonContested.map(a=>a.margin),1);
+
+  return`
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px;margin-bottom:1rem">
+      <div class="dmet"><div class="dmet-v" style="color:${styleColor}">${style}</div><div class="dmet-l">Bidding style</div></div>
+      <div class="dmet"><div class="dmet-v" style="color:${avgMargin<=3?'var(--green)':avgMargin<=7?'var(--amber)':'var(--red)'}">${realContested.length>0?fmt(avgMargin):'—'}</div><div class="dmet-l">Avg contested margin</div></div>
+      <div class="dmet"><div class="dmet-v">${wonContested.length}<span style="font-size:10px;color:var(--muted)"> / ${totalWins}</span></div><div class="dmet-l">Contested / total wins</div></div>
+      <div class="dmet"><div class="dmet-v" style="color:${totalWasted>=20?'var(--red)':totalWasted>=8?'var(--amber)':'var(--muted2)'}">${fmt(totalWasted)}</div><div class="dmet-l">Total est. wasted</div></div>
+      <div class="dmet"><div class="dmet-v" style="color:${uncontestedWaste>0?'var(--red)':'var(--muted2)'}">${fmt(uncontestedWaste)}</div><div class="dmet-l">Uncontested waste</div></div>
+      <div class="dmet"><div class="dmet-v" style="color:${contestedWaste>=10?'var(--amber)':'var(--muted2)'}">${fmt(contestedWaste)}</div><div class="dmet-l">Contested overpay</div></div>
+    </div>
+
+    <div class="tendency-insight" style="border:none;padding:0;margin-bottom:1rem">
+      <div class="tendency-icon">🎯</div>
+      <div>
+        <div class="tendency-label">Scouting verdict</div>
+        <div class="tendency-text">${styleDesc}
+          ${worstUncontested?` Worst uncontested overspend: <strong>${fmt(worstUncontested.won)}</strong> on <strong>${worstUncontested.player}</strong> (Wk ${worstUncontested.week}) — above the ${worstUncontested.pos} threshold of ${fmt(worstUncontested.wasteThreshold)}.`:''}
+          ${maxMargin&&!maxMargin.bothZero&&maxMargin.margin>=6?` Biggest contested overbid: <strong>${fmt(maxMargin.won)}</strong> on <strong>${maxMargin.player}</strong> when <strong>${fmt(maxMargin.second)}</strong> would have won (Wk ${maxMargin.week}, +${fmt(maxMargin.margin)}).`:''}
+          ${minRealMargin&&minRealMargin.margin<=2?` Sharpest call: <strong>${fmt(minRealMargin.won)}</strong> on <strong>${minRealMargin.player}</strong>, beat runner-up by just +${fmt(minRealMargin.margin)} (Wk ${minRealMargin.week}).`:''}
+        </div>
+      </div>
+    </div>
+
+    ${(()=>{
+      const realWaste=wonUncontested.filter(a=>a.isWaste);
+      const hedges=wonUncontested.filter(a=>a.isHedge);
+      if(!realWaste.length&&!hedges.length) return '';
+      return`<div style="margin-bottom:1rem">
+        ${realWaste.length>0?`
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--red);margin-bottom:6px;display:flex;align-items:center;gap:6px">
+          <span>⚠</span> Uncontested FAAB overspend — well above $0 with no competition
+        </div>
+        <div class="overbid-table" style="margin-bottom:8px">
+          <div class="overbid-row overbid-hdr" style="grid-template-columns:36px 30px 1fr 55px 80px 1fr 90px">
+            <div>Wk</div><div>Pos</div><div>Player</div>
+            <div style="text-align:right">Bid</div>
+            <div style="text-align:right">Flag threshold</div>
+            <div>Waste bar</div>
+            <div style="text-align:right">Verdict</div>
+          </div>
+          ${[...realWaste].sort((a,b)=>b.won-a.won).map(a=>`
+            <div class="overbid-row" style="grid-template-columns:36px 30px 1fr 55px 80px 1fr 90px">
+              <div style="color:var(--muted);font-size:10px">Wk ${a.week}</div>
+              <div class="bid-pos-cell" style="color:${posColor(a.pos)}">${a.pos}</div>
+              <div style="color:var(--text);font-size:11px">${a.player}</div>
+              <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700;color:var(--red)">${fmt(a.won)}</div>
+              <div style="text-align:right;font-size:10px;color:var(--muted2)">${fmt(a.wasteThreshold)}+ for ${a.pos}</div>
+              <div>
+                <div style="display:flex;align-items:center;gap:5px">
+                  <div style="flex:1;height:4px;background:var(--s2);border-radius:2px;overflow:hidden;min-width:30px">
+                    <div style="height:100%;width:100%;background:var(--red);border-radius:2px"></div>
+                  </div>
+                  <span style="font-size:11px;color:var(--red);font-family:'Syne',sans-serif;font-weight:700">+${fmt(a.won)}</span>
+                </div>
+              </div>
+              <div style="text-align:right"><span style="font-size:9px;padding:2px 7px;border-radius:3px;background:rgba(248,113,113,.1);color:var(--red)">Overspend</span></div>
+            </div>`).join('')}
+        </div>`:''}
+        ${hedges.length>0?`
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">
+          Acceptable priority hedges — small bids on uncontested players
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:5px">
+          ${[...hedges].sort((a,b)=>b.won-a.won).map(a=>`
+            <span style="font-size:10px;background:var(--s2);border:.5px solid var(--b1);border-radius:4px;padding:3px 9px;color:var(--muted2)">
+              Wk ${a.week} · <span style="color:${posColor(a.pos)}">${a.pos}</span> ${a.player} · ${fmt(a.won)} <span style="color:var(--green)">✓ hedge</span>
+            </span>`).join('')}
+        </div>`:''}
+      </div>`;
+    })()}
+
+    ${wonContested.length>0?`
+    <div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Contested auctions — margin analysis</div>
+      <div class="overbid-table">
+        <div class="overbid-row overbid-hdr">
+          <div>Wk</div><div>Pos</div><div>Player</div>
+          <div style="text-align:right">Won at</div>
+          <div style="text-align:right">2nd bid</div>
+          <div>Margin</div>
+          <div style="text-align:right">Verdict</div>
+        </div>
+        ${sorted.map(a=>{
+          const marColor=a.bothZero?'var(--muted)':a.margin<=2?'var(--green)':a.margin<=5?'var(--lime)':a.margin<=10?'var(--amber)':'var(--red)';
+          const verdict=a.bothZero?'Priority tie':a.margin===0?'Exact tie':a.margin<=2?'Precise':a.margin<=5?'Slight overpay':a.margin<=10?'Overpay':'Big overpay';
+          const vBg=a.bothZero||a.margin<=2?'background:var(--s2);color:var(--muted2)':a.margin<=5?'background:rgba(200,241,53,.06);color:var(--lime)':a.margin<=10?'background:rgba(251,191,36,.08);color:var(--amber)':'background:rgba(248,113,113,.08);color:var(--red)';
+          const barW=Math.round(a.margin/maxM*100);
+          return`<div class="overbid-row">
+            <div style="color:var(--muted);font-size:10px">Wk ${a.week}</div>
+            <div class="bid-pos-cell" style="color:${posColor(a.pos)}">${a.pos}</div>
+            <div style="color:var(--text);font-size:11px">${a.player}</div>
+            <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${marColor}">${fmt(a.won)}</div>
+            <div style="text-align:right;font-size:11px;color:var(--muted2)">${fmt(a.second)}</div>
+            <div>
+              <div style="display:flex;align-items:center;gap:5px">
+                <div style="flex:1;height:4px;background:var(--s2);border-radius:2px;overflow:hidden;min-width:30px">
+                  <div style="height:100%;width:${barW}%;background:${marColor};border-radius:2px"></div>
+                </div>
+                <span style="font-size:11px;color:${marColor};font-family:'Syne',sans-serif;font-weight:700;min-width:28px">+${fmt(a.margin)}</span>
+              </div>
+            </div>
+            <div style="text-align:right"><span style="font-size:9px;padding:2px 7px;border-radius:3px;${vBg}">${verdict}</span></div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>`:''}
+
+    ${wonUncontested.filter(a=>a.won===0).length>0?`
+    <div style="margin-top:1rem">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">$0 uncontested wins — efficient</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${wonUncontested.filter(a=>a.won===0).map(a=>`
+          <span style="font-size:10px;background:var(--s2);border:.5px solid var(--b1);border-radius:4px;padding:3px 8px;color:var(--muted2)">
+            Wk ${a.week} · <span style="color:${posColor(a.pos)}">${a.pos}</span> ${a.player}
+          </span>`).join('')}
+      </div>
+    </div>`:''}`;
+}
+
+// Store bid data keyed by uid — populated when manager detail renders
+window._bidData={};
+
+function bidRow(b){
+  return`<div class="bid-table-row">
+    <div style="color:var(--muted);font-size:10px">Wk ${b.week}</div>
+    <div class="bid-pos-cell" style="color:${posColor(b.pos)}">${b.pos}</div>
+    <div style="color:var(--text)">${b.player}</div>
+    <div class="bid-drop-cell">${b.drop?'↓ '+b.drop:'—'}</div>
+    <div class="bid-amt-cell ${bidColor(b.bid)}">${fmt(b.bid)}</div>
+    <div style="text-align:right;font-size:10px;color:var(--muted)">${Math.round(b.bid/BUDGET*100)}%</div>
+  </div>`;
+}
+
+function buildFailedBidsWithContext(name, season){
+  // For each failed bid, find the winning bid on the same player that week
+  const s = season===2024 ? APP.stats2024[name] : APP.stats[name];
+  const weeklySource = season===2024 ? APP.weeklyData2024 : APP.weeklyData;
+  if(!s) return [];
+
+  return s.failedBids.map(fb=>{
+    // Find this player+week in weeklyData
+    const weekData = weeklySource[fb.week];
+    let wonBy=null, wonAmt=null;
+    if(weekData){
+      const playerEntry = (weekData.players||[]).find(p=>p.pid===fb.pid);
+      if(playerEntry){
+        const winner = playerEntry.bids.find(b=>b.status==='complete');
+        if(winner){ wonBy=winner.manager; wonAmt=winner.bid; }
+      }
+    }
+    const margin = wonAmt!==null ? wonAmt - fb.bid : null;
+    return {...fb, wonBy, wonAmt, margin};
+  }).sort((a,b)=>b.bid-a.bid);
+}
+
+function renderFailedBidsSection(name, season){
+  const enriched = buildFailedBidsWithContext(name, season);
+  if(!enriched.length) return `<div style="font-size:11px;color:var(--muted);padding:4px 0">No failed bids in ${season}.</div>`;
+
+  // Only show bids where real FAAB was committed — $0 failures are noise
+  const meaningful = enriched.filter(b=>b.bid>0);
+  const zeroBids = enriched.filter(b=>b.bid===0);
+
+  return`
+    <div class="failed-enriched-table">
+      <div class="fe-row fe-hdr">
+        <div>Wk</div>
+        <div>Pos</div>
+        <div>Player</div>
+        <div style="text-align:right">Your bid</div>
+        <div>Won by</div>
+        <div style="text-align:right">Won at</div>
+        <div style="text-align:right">Margin</div>
+      </div>
+      ${meaningful.map(b=>{
+        const marginColor = b.margin===null?'var(--muted)':b.margin<=2?'var(--green)':b.margin<=8?'var(--amber)':'var(--red)';
+        const marginTxt = b.margin===null?'—':b.margin===0?'Priority':'+'+fmt(b.margin);
+        const wonColor = b.wonBy===WINNER?'var(--lime)':b.wonBy===YOU?'var(--blue)':'var(--muted2)';
+        return`<div class="fe-row">
+          <div style="color:var(--muted);font-size:10px">Wk ${b.week||'?'}</div>
+          <div class="bid-pos-cell" style="color:${posColor(b.pos||'?')}">${b.pos||'?'}</div>
+          <div style="color:var(--text)">${b.player}</div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700;color:var(--red)">${fmt(b.bid)}</div>
+          <div style="color:${wonColor};font-size:11px">${b.wonBy||'—'}</div>
+          <div style="text-align:right;color:var(--muted2);font-size:11px">${b.wonAmt!==null?fmt(b.wonAmt):'—'}</div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700;font-size:12px;color:${marginColor}">${marginTxt}</div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${zeroBids.length>0?`<div style="font-size:10px;color:var(--muted);margin-top:8px">${zeroBids.length} additional $0 priority bids lost (not shown — no FAAB committed).</div>`:''}`;
+}
+
+function renderBidsSection(name, s, season){
+  const bids=s.bids||[];
+  if(!bids.length) return`<div class="sec">${season} winning bids</div><div style="font-size:11px;color:var(--muted);padding:4px 0">No winning FAAB bids in ${season}.</div>`;
+
+  const uid=name.replace(/[^a-z0-9]/gi,'')+'_'+season;
+  const byAmt=[...bids].sort((a,b)=>b.bid-a.bid);
+  const byWk=[...bids].sort((a,b)=>a.week!==b.week?a.week-b.week:b.bid-a.bid);
+
+  // Store in global immediately — no inline script needed
+  window._bidData[uid]={byAmt,byWk};
+
+  return`
+    <div class="sec" style="display:flex;align-items:center;justify-content:space-between">
+      <span>${season} winning bids</span>
+      <div style="display:flex;gap:4px">
+        <button id="btn_amt_${uid}" onclick="setBidSort('${uid}','amt')" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--lime);background:var(--lime);color:#0d0d0f;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500">$ Amount</button>
+        <button id="btn_wk_${uid}" onclick="setBidSort('${uid}','wk')" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">By week</button>
+      </div>
+    </div>
+    <div class="bid-table">
+      <div class="bid-table-row bid-table-hdr"><div>Wk</div><div>Pos</div><div>Player added</div><div>Dropped</div><div style="text-align:right">Bid</div><div style="text-align:right">of budget</div></div>
+      <div id="bidrows_${uid}">${byAmt.map(b=>bidRow(b)).join('')}</div>
+    </div>`;
+}
+
+function setBidSort(uid, mode){
+  const data=window._bidData[uid];
+  if(!data){console.warn('No bid data for',uid);return;}
+  const arr=mode==='wk'?data.byWk:data.byAmt;
+  const el=document.getElementById('bidrows_'+uid);
+  if(el) el.innerHTML=arr.map(b=>bidRow(b)).join('');
+  // Toggle button styles
+  const btnAmt=document.getElementById('btn_amt_'+uid);
+  const btnWk=document.getElementById('btn_wk_'+uid);
+  if(btnAmt){
+    btnAmt.style.background=mode==='amt'?'var(--lime)':'transparent';
+    btnAmt.style.color=mode==='amt'?'#0d0d0f':'var(--muted2)';
+    btnAmt.style.borderColor=mode==='amt'?'var(--lime)':'var(--b2)';
+    btnAmt.style.fontWeight=mode==='amt'?'500':'400';
+  }
+  if(btnWk){
+    btnWk.style.background=mode==='wk'?'var(--lime)':'transparent';
+    btnWk.style.color=mode==='wk'?'#0d0d0f':'var(--muted2)';
+    btnWk.style.borderColor=mode==='wk'?'var(--lime)':'var(--b2)';
+    btnWk.style.fontWeight=mode==='wk'?'500':'400';
+  }
+}
+
+function showManagerDetail(name){
+  const s=APP.stats[name];
+  const arch=archetype(s);
+  const topBids=[...s.bids].sort((a,b)=>b.bid-a.bid);
+  const pct=Math.min(Math.round(s.totalSpent/BUDGET*100),100);
+  // topFailed removed — using renderFailedBidsSection instead
+  const maxPos=Math.max(...Object.values(s.posSpend),1);
+
+  const dv=document.getElementById('mgr-detail-view');
+  dv.innerHTML=`
+    <div class="detail-back" onclick="closeManagerDetail()">← Back to managers</div>
+    <div class="detail-header">
+      <div>
+        <div class="detail-name ${nameClass(name)}">${name}${name===WINNER?' 🏆':''}</div>
+        <div style="font-size:11px;color:var(--muted2);margin-top:4px">${arch}${name===YOU?' · Your team':''}</div>
+      </div>
+      <div class="badges" style="align-self:flex-start">
+        ${name===WINNER?`<span class="bdg bdg-lime">Champion</span>`:''}
+        ${name===YOU?`<span class="bdg bdg-blue">You</span>`:''}
+        <span class="bdg bdg-gray">${arch}</span>
+      </div>
+    </div>
+    <div class="detail-metrics">
+      <div class="dmet"><div class="dmet-v ${s.totalSpent>=35?'c-red':s.totalSpent<=5?'c-muted':'c-lime'}">${fmt(s.totalSpent)}</div><div class="dmet-l">Total spent</div></div>
+      <div class="dmet"><div class="dmet-v">${s.bidCount}</div><div class="dmet-l">Wins</div></div>
+      <div class="dmet"><div class="dmet-v">${s.totalAttempts}</div><div class="dmet-l">Total bids</div></div>
+      <div class="dmet"><div class="dmet-v ${s.avgBid>=15?'c-amber':''}">${s.avgBid>0?fmt(Math.round(s.avgBid)):'-'}</div><div class="dmet-l">Avg winning bid</div></div>
+      <div class="dmet"><div class="dmet-v ${s.maxBid>=25?'c-red':s.maxBid>=12?'c-amber':s.maxBid>0?'c-green':'c-muted'}">${s.maxBid>0?fmt(s.maxBid):'-'}</div><div class="dmet-l">Largest bid</div></div>
+      <div class="dmet"><div class="dmet-v ${s.remainingFAAB!==null&&s.remainingFAAB>=50?'c-green':s.remainingFAAB!==null&&s.remainingFAAB<=15?'c-red':'c-muted'}">${s.remainingFAAB!==null?fmt(s.remainingFAAB):'—'}</div><div class="dmet-l">Remaining</div></div>
+    </div>
+    <div style="margin-bottom:1rem">
+      <div class="sec" style="margin-top:0">Position spending</div>
+      <div class="pos-spend-box">
+        ${Object.entries(s.posSpend).sort((a,b)=>b[1]-a[1]).map(([pos,amt])=>`
+          <div class="pos-bar-row">
+            <span class="pos-bar-label" style="color:${posColor(pos)}">${pos}</span>
+            <div class="pos-bar-track"><div class="pos-bar-fill" style="width:${Math.round(amt/maxPos*100)}%;background:${posColor(pos)}"></div></div>
+            <span class="pos-bar-val" style="color:${posColor(pos)}">${fmt(amt)}</span>
+          </div>`).join('')}
+        ${Object.keys(s.posSpend).length===0?`<div style="font-size:11px;color:var(--muted)">No FAAB spent</div>`:''}
+      </div>
+    </div>
+    <div class="sec">2025 failed bids — what you lost and who beat you</div>
+    ${renderFailedBidsSection(name, 2025)}
+    <div class="sec">2024 failed bids — what you lost and who beat you</div>
+    ${renderFailedBidsSection(name, 2024)}
+    <div class="sec">2024 vs 2025 — year over year</div>
+    ${(()=>{
+      const s24=APP.stats2024[name]||{totalSpent:0,bidCount:0,avgBid:0,remainingFAAB:null,posSpend:{}};
+      const s25=APP.stats[name];
+      const delta=s25.totalSpent-s24.totalSpent;
+      const deltaColor=Math.abs(delta)<5?'var(--muted2)':delta>0?'var(--red)':'var(--green)';
+      const max2=Math.max(s24.totalSpent,s25.totalSpent,1);
+      const allPos=[...new Set([...Object.keys(s24.posSpend||{}),...Object.keys(s25.posSpend||{})])];
+      return`<div style="background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.25rem;margin-bottom:.5rem">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(100px,1fr));gap:8px;margin-bottom:1rem">
+          <div class="dmet"><div class="dmet-v" style="color:var(--muted2)">${fmt(s24.totalSpent)}</div><div class="dmet-l">2024 spent</div></div>
+          <div class="dmet"><div class="dmet-v" style="color:var(--lime)">${fmt(s25.totalSpent)}</div><div class="dmet-l">2025 spent</div></div>
+          <div class="dmet"><div class="dmet-v" style="color:${deltaColor}">${delta>=0?'+':''}${fmt(delta)}</div><div class="dmet-l">Δ spend</div></div>
+          <div class="dmet"><div class="dmet-v" style="color:var(--muted2)">${s24.bidCount}</div><div class="dmet-l">2024 adds</div></div>
+          <div class="dmet"><div class="dmet-v" style="color:var(--lime)">${s25.bidCount}</div><div class="dmet-l">2025 adds</div></div>
+          <div class="dmet"><div class="dmet-v" style="color:${delta>10?'var(--red)':delta<-10?'var(--green)':'var(--muted2)'}">${delta>10?'More aggressive':delta<-10?'More conservative':'Consistent'}</div><div class="dmet-l">Trend</div></div>
+        </div>
+        <div style="display:flex;align-items:flex-end;gap:8px;height:50px;margin-bottom:8px">
+          <div style="font-size:10px;color:var(--muted);width:30px;text-align:right;padding-bottom:2px">$100</div>
+          <div style="flex:1;position:relative;height:100%">
+            <div style="position:absolute;bottom:0;left:0;width:100%;height:.5px;background:var(--b2)"></div>
+            <div style="display:flex;align-items:flex-end;gap:4px;height:100%">
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="font-size:9px;color:var(--muted2)">${fmt(s24.totalSpent)}</div>
+                <div style="width:100%;background:rgba(96,165,250,.5);border-radius:2px 2px 0 0;height:${Math.round(s24.totalSpent/100*40)}px"></div>
+              </div>
+              <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
+                <div style="font-size:9px;color:var(--muted2)">${fmt(s25.totalSpent)}</div>
+                <div style="width:100%;background:var(--lime);border-radius:2px 2px 0 0;height:${Math.round(s25.totalSpent/100*40)}px;opacity:.8"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;font-size:10px;color:var(--muted)">
+          <span><span style="display:inline-block;width:10px;height:10px;background:rgba(96,165,250,.5);border-radius:2px;margin-right:4px;vertical-align:middle"></span>2024</span>
+          <span><span style="display:inline-block;width:10px;height:10px;background:var(--lime);border-radius:2px;margin-right:4px;vertical-align:middle;opacity:.8"></span>2025</span>
+        </div>
+        ${allPos.length>0?`<div style="margin-top:1rem;border-top:.5px solid var(--b1);padding-top:1rem">
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">Position spend shift</div>
+          ${allPos.sort((a,b)=>((s25.posSpend[b]||0)+(s24.posSpend[b]||0))-((s25.posSpend[a]||0)+(s24.posSpend[a]||0))).map(pos=>{
+            const v24=s24.posSpend?.[pos]||0;
+            const v25=s25.posSpend?.[pos]||0;
+            const d=v25-v24;
+            const maxV=Math.max(v24,v25,1);
+            return`<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+              <span style="font-size:10px;width:28px;color:${posColor(pos)}">${pos}</span>
+              <div style="flex:1;display:flex;flex-direction:column;gap:2px">
+                <div style="height:4px;background:var(--s2);border-radius:2px;overflow:hidden">
+                  <div style="height:100%;width:${Math.round(v24/100*100)}%;background:rgba(96,165,250,.4);border-radius:2px"></div>
+                </div>
+                <div style="height:4px;background:var(--s2);border-radius:2px;overflow:hidden">
+                  <div style="height:100%;width:${Math.round(v25/100*100)}%;background:${posColor(pos)};border-radius:2px;opacity:.8"></div>
+                </div>
+              </div>
+              <span style="font-size:10px;width:48px;text-align:right;color:var(--muted2)">${fmt(v24)} → ${fmt(v25)}</span>
+              <span style="font-size:10px;width:36px;text-align:right;color:${d>2?'var(--red)':d<-2?'var(--green)':'var(--muted)'}">${d>=0?'+':''}${fmt(d)}</span>
+            </div>`;
+          }).join('')}
+        </div>`:''}
+      </div>`;
+    })()}
+    ${renderBidsSection(name, s, 2025)}
+    ${(()=>{
+      const s24=APP.stats2024[name];
+      if(!s24) return '';
+      return renderBidsSection(name, s24, 2024);
+    })()}
+
+    <div class="sec">2025 overbid analysis</div>
+    <div class="overbid-wrap">${renderOverbidSection(name, 2025)}</div>
+    <div class="sec">2024 overbid analysis</div>
+    <div class="overbid-wrap">${renderOverbidSection(name, 2024)}</div>
+    <div class="sec">Tendencies & scouting report</div>
+    <div class="tendency-box">${renderTendencies(name,s)}</div>`;
+
+  document.getElementById('mgr-grid-view').style.display='none';
+  dv.style.display='block';
+  dv.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
+function closeManagerDetail(){
+  document.getElementById('mgr-grid-view').style.display='block';
+  document.getElementById('mgr-detail-view').style.display='none';
+}
+
+function goToManager(name){
+  showView('managers');
+  setTimeout(()=>showManagerDetail(name),50);
+}
+
+
+// ── RIVALRY MATRIX ───────────────────────────────────────────────────────────
+function buildRivalryData(season){
+  const weeklySource=season===2024?APP.weeklyData2024:APP.weeklyData;
+  const managers=Object.values(ROSTER_MAP);
+
+  // rivalry[A][B] = {won, lost, totalBids, dollarWon, dollarLost, auctions:[]}
+  const rivalry={};
+  managers.forEach(a=>{
+    rivalry[a]={};
+    managers.forEach(b=>{ if(a!==b) rivalry[a][b]={won:0,lost:0,totalBids:0,dollarWon:0,dollarLost:0,auctions:[]}; });
+  });
+
+  Object.entries(weeklySource).forEach(([weekStr,wd])=>{
+    const week=parseInt(weekStr);
+    (wd.players||[]).forEach(p=>{
+      if(p.bids.length<2)return; // only contested
+      const winner=p.bids.find(b=>b.status==='complete');
+      if(!winner)return;
+      // For each losing bid, record rivalry between winner and loser
+      p.bids.filter(b=>b.status!=='complete').forEach(loser=>{
+        if(!rivalry[winner.manager]||!rivalry[winner.manager][loser.manager])return;
+        rivalry[winner.manager][loser.manager].won++;
+        rivalry[winner.manager][loser.manager].totalBids++;
+        rivalry[winner.manager][loser.manager].dollarWon+=winner.bid;
+        rivalry[winner.manager][loser.manager].auctions.push({
+          player:p.name,pos:p.pos,week,
+          winnerBid:winner.bid,loserBid:loser.bid,
+          margin:winner.bid-loser.bid,
+          youWon:true
+        });
+        rivalry[loser.manager][winner.manager].lost++;
+        rivalry[loser.manager][winner.manager].totalBids++;
+        rivalry[loser.manager][winner.manager].dollarLost+=loser.bid;
+        rivalry[loser.manager][winner.manager].auctions.push({
+          player:p.name,pos:p.pos,week,
+          winnerBid:winner.bid,loserBid:loser.bid,
+          margin:winner.bid-loser.bid,
+          youWon:false
+        });
+      });
+    });
+  });
+  return rivalry;
+}
+
+function cellColor(won, lost){
+  const total=won+lost;
+  if(total===0)return'var(--s2)';
+  const rate=won/total;
+  if(rate>=0.7)return'rgba(52,211,153,0.18)';
+  if(rate>=0.5)return'rgba(200,241,53,0.12)';
+  if(rate>=0.3)return'rgba(251,191,36,0.12)';
+  return'rgba(248,113,113,0.14)';
+}
+
+let _rivalryCurrent={season:2025,rivalry:null};
+
+function renderRivals(){
+  if(!_rivalryCurrent.rivalry){
+    _rivalryCurrent.rivalry=buildRivalryData(2025);
+    _rivalryCurrent.rivalry2024=buildRivalryData(2024);
+  }
+  const el=document.getElementById('rivals-content');
+  const managers=Object.values(ROSTER_MAP);
+  const r=_rivalryCurrent.rivalry;
+  const r24=_rivalryCurrent.rivalry2024;
+
+  // Sort managers: winner first, you second, then by total contested bids desc
+  const sorted=[...managers].sort((a,b)=>{
+    if(a===WINNER)return -1;if(b===WINNER)return 1;
+    if(a===YOU)return -1;if(b===YOU)return 1;
+    const aTotal=managers.reduce((s,m)=>m!==a?s+(r[a][m]?.totalBids||0):s,0);
+    const bTotal=managers.reduce((s,m)=>m!==b?s+(r[b][m]?.totalBids||0):s,0);
+    return bTotal-aTotal;
+  });
+
+  // Summary stats
+  const myRivals=managers.filter(m=>m!==YOU).map(m=>({
+    name:m,
+    won:r[YOU]?.[m]?.won||0,
+    lost:r[YOU]?.[m]?.lost||0,
+    total:(r[YOU]?.[m]?.totalBids||0)
+  })).filter(m=>m.total>0).sort((a,b)=>b.total-a.total);
+
+  const totalWon=myRivals.reduce((s,m)=>s+m.won,0);
+  const totalLost=myRivals.reduce((s,m)=>s+m.lost,0);
+  const biggestRival=myRivals.length>0?myRivals.reduce((a,b)=>b.total>a.total?b:a):null;
+  const bestRecord=myRivals.filter(m=>m.total>=3).sort((a,b)=>(b.won/Math.max(b.total,1))-(a.won/Math.max(a.total,1)))[0];
+  const worstRecord=myRivals.filter(m=>m.total>=3).sort((a,b)=>(a.won/Math.max(a.total,1))-(b.won/Math.max(b.total,1)))[0];
+
+  el.innerHTML=`
+    <div class="sum-grid" style="margin-bottom:1.5rem">
+      <div class="sum-card"><div class="sum-val c-lime">${totalWon}</div><div class="sum-lbl">Contested wins (2025)</div><div class="sum-sub">vs ${totalLost} losses</div></div>
+      <div class="sum-card"><div class="sum-val">${totalWon+totalLost>0?Math.round(totalWon/(totalWon+totalLost)*100):0}%</div><div class="sum-lbl">Overall win rate</div><div class="sum-sub">in contested auctions</div></div>
+      <div class="sum-card"><div class="sum-val ${nameClass(biggestRival?.name)||''}">${biggestRival?.name||'—'}</div><div class="sum-lbl">Most contested against</div><div class="sum-sub">${biggestRival?.total||0} shared auctions</div></div>
+      <div class="sum-card"><div class="sum-val c-green">${bestRecord?.name||'—'}</div><div class="sum-lbl">Best record against</div><div class="sum-sub">${bestRecord?bestRecord.won+'-'+bestRecord.lost:''}</div></div>
+      <div class="sum-card"><div class="sum-val c-red">${worstRecord?.name||'—'}</div><div class="sum-lbl">Worst record against</div><div class="sum-sub">${worstRecord?worstRecord.won+'-'+worstRecord.lost:''}</div></div>
+    </div>
+
+    <div class="sec" style="margin-top:0">Season toggle</div>
+    <div style="display:flex;gap:6px;margin-bottom:1rem">
+      <button id="rivals-btn-2025" onclick="switchRivalsSeason(2025)" style="font-size:10px;padding:4px 12px;border-radius:5px;border:.5px solid var(--lime);background:var(--lime);color:#0d0d0f;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500">2025</button>
+      <button id="rivals-btn-2024" onclick="switchRivalsSeason(2024)" style="font-size:10px;padding:4px 12px;border-radius:5px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">2024</button>
+    </div>
+
+    <div class="sec">head-to-head matrix — click any cell to see auction detail</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Row = manager · Column = opponent · Cell shows W-L record in contested auctions · <span style="color:var(--green)">Green</span> = winning · <span style="color:var(--red)">Red</span> = losing</p>
+    <div class="rivalry-matrix" id="rivalry-matrix-wrap"></div>
+    <div id="rivalry-drill"></div>
+  `;
+
+  renderRivalryMatrix(sorted, r);
+}
+
+function renderRivalryMatrix(sorted, r){
+  const wrap=document.getElementById('rivalry-matrix-wrap');
+  if(!wrap)return;
+
+  let tableHTML=`<table class="rm-table"><thead><tr>
+    <th class="rm-cell header">Manager</th>
+    ${sorted.map(m=>`<th class="rm-cell col-header" style="font-size:9px;color:${nameClass(m)||'var(--muted)'};padding:4px 2px">${m.length>8?m.slice(0,8)+'…':m}</th>`).join('')}
+    <th class="rm-cell col-header">Total W-L</th>
+  </tr></thead><tbody>`;
+
+  sorted.forEach(rowMgr=>{
+    const totalWon=sorted.reduce((s,col)=>col!==rowMgr?s+(r[rowMgr]?.[col]?.won||0):s,0);
+    const totalLost=sorted.reduce((s,col)=>col!==rowMgr?s+(r[rowMgr]?.[col]?.lost||0):s,0);
+    const rowColor=totalWon+totalLost>0?(totalWon/(totalWon+totalLost)>=0.5?'var(--green)':'var(--red)'):'var(--muted)';
+
+    tableHTML+=`<tr>
+      <td class="rm-cell header" style="color:${nameClass(rowMgr)||'var(--muted2)'};font-size:10px;font-weight:500">${rowMgr}${rowMgr===WINNER?' 🏆':rowMgr===YOU?' ◀':''}</td>
+      ${sorted.map(colMgr=>{
+        if(rowMgr===colMgr) return`<td class="rm-cell self">—</td>`;
+        const d=r[rowMgr]?.[colMgr]||{won:0,lost:0,totalBids:0};
+        const bg=cellColor(d.won,d.lost);
+        const wr=d.totalBids>0?Math.round(d.won/d.totalBids*100):null;
+        return`<td class="rm-cell" style="background:${bg}" onclick="showRivalryDrill('${rowMgr}','${colMgr}')">
+          <div class="rm-win" style="color:${d.won>d.lost?'var(--green)':d.won<d.lost?'var(--red)':'var(--muted2)'}">${d.won}-${d.lost}</div>
+          ${d.totalBids>0?`<div class="rm-sub">${wr}%</div>`:'<div class="rm-sub" style="color:var(--muted)">—</div>'}
+        </td>`;
+      }).join('')}
+      <td class="rm-cell" style="background:var(--s2)">
+        <div class="rm-win" style="color:${rowColor}">${totalWon}-${totalLost}</div>
+        ${totalWon+totalLost>0?`<div class="rm-sub">${Math.round(totalWon/(totalWon+totalLost)*100)}%</div>`:''}
+      </td>
+    </tr>`;
+  });
+
+  tableHTML+=`</tbody></table>`;
+  wrap.innerHTML=tableHTML;
+}
+
+function switchRivalsSeason(season){
+  const r=season===2024?_rivalryCurrent.rivalry2024:_rivalryCurrent.rivalry;
+  const managers=Object.values(ROSTER_MAP);
+  const sorted=[...managers].sort((a,b)=>{
+    if(a===WINNER)return -1;if(b===WINNER)return 1;
+    if(a===YOU)return -1;if(b===YOU)return 1;
+    return 0;
+  });
+  renderRivalryMatrix(sorted,r);
+  document.getElementById('rivalry-drill').innerHTML='';
+  ['2024','2025'].forEach(y=>{
+    const btn=document.getElementById('rivals-btn-'+y);
+    if(!btn)return;
+    if(parseInt(y)===season){btn.style.background='var(--lime)';btn.style.color='#0d0d0f';btn.style.borderColor='var(--lime)';btn.style.fontWeight='500';}
+    else{btn.style.background='transparent';btn.style.color='var(--muted2)';btn.style.borderColor='var(--b2)';btn.style.fontWeight='400';}
+  });
+  _rivalryCurrent.currentSeason=season;
+}
+
+function showRivalryDrill(rowMgr, colMgr){
+  const season=_rivalryCurrent.currentSeason||2025;
+  const r=season===2024?_rivalryCurrent.rivalry2024:_rivalryCurrent.rivalry;
+  const d=r[rowMgr]?.[colMgr];
+  if(!d||!d.auctions.length){
+    document.getElementById('rivalry-drill').innerHTML=`<div class="rivalry-detail"><div style="font-size:11px;color:var(--muted)">No contested auctions between ${rowMgr} and ${colMgr} in ${season}.</div></div>`;
+    return;
+  }
+
+  const sorted=[...d.auctions].sort((a,b)=>b.winnerBid-a.winnerBid);
+  const winAuctions=sorted.filter(a=>a.youWon);
+  const lossAuctions=sorted.filter(a=>!a.youWon);
+
+  document.getElementById('rivalry-drill').innerHTML=`
+    <div class="rivalry-detail">
+      <div class="rivalry-detail-title">
+        <span style="color:${nameClass(rowMgr)||'var(--text)'}">${rowMgr}</span>
+        <span style="color:var(--muted)"> vs </span>
+        <span style="color:${nameClass(colMgr)||'var(--text)'}">${colMgr}</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px">${season} · ${d.won}-${d.lost} record · ${d.totalBids} contested auctions</span>
+      </div>
+      <div class="rd-row rd-hdr">
+        <div>Wk</div><div>Pos</div><div>Player</div>
+        <div style="text-align:right">${rowMgr.slice(0,6)} bid</div>
+        <div style="text-align:right">${colMgr.slice(0,6)} bid</div>
+        <div style="text-align:right">Result</div>
+      </div>
+      ${sorted.map(a=>{
+        const rowBid=a.youWon?a.winnerBid:a.loserBid;
+        const colBid=a.youWon?a.loserBid:a.winnerBid;
+        const margin=Math.abs(a.margin);
+        const resultColor=a.youWon?'var(--green)':'var(--red)';
+        const resultTxt=a.youWon?`✓ Won +${fmt(margin)}`:`✗ Lost -${fmt(margin)}`;
+        return`<div class="rd-row">
+          <div style="color:var(--muted);font-size:10px">Wk ${a.week}</div>
+          <div class="bid-pos-cell" style="color:${posColor(a.pos)}">${a.pos}</div>
+          <div style="color:var(--text)">${a.player}</div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700;color:${resultColor}">${fmt(rowBid)}</div>
+          <div style="text-align:right;color:var(--muted2)">${fmt(colBid)}</div>
+          <div style="text-align:right;font-size:10px;color:${resultColor}">${resultTxt}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('rivalry-drill').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+
+// ── BUDGET PACING CHART ───────────────────────────────────────────────────────
+function buildPacingData(statsSource){
+  const managers=Object.values(ROSTER_MAP);
+  // For each manager, compute running FAAB spent week by week → remaining balance
+  const pacing={};
+  managers.forEach(name=>{
+    const s=statsSource[name]||{weekSpend:{}};
+    let remaining=BUDGET;
+    const points=[{week:0,remaining:BUDGET}];
+    for(let w=1;w<=18;w++){
+      remaining-=(s.weekSpend[w]||0);
+      points.push({week:w,remaining:Math.max(remaining,0)});
+    }
+    pacing[name]=points;
+  });
+  return pacing;
+}
+
+function renderPacingChart(containerId, statsSource, season){
+  const pacing=buildPacingData(statsSource);
+  const managers=Object.values(ROSTER_MAP);
+  const W=780, H=200, PAD={t:16,r:16,b:28,l:36};
+  const chartW=W-PAD.l-PAD.r, chartH=H-PAD.t-PAD.b;
+  const weeks=19; // 0-18
+  const xScale=w=>PAD.l+w/18*chartW;
+  const yScale=v=>PAD.t+chartH-(v/BUDGET)*chartH;
+
+  // Color palette for managers
+  const COLORS=['#c8f135','#60a5fa','#f87171','#fbbf24','#34d399','#a78bfa',
+                '#fb923c','#38bdf8','#e879f9','#4ade80','#f472b6','#facc15'];
+  const managerColors={};
+  managers.forEach((m,i)=>{managerColors[m]=COLORS[i%COLORS.length];});
+  // Override key ones
+  managerColors[YOU]='#60a5fa';
+  managerColors[WINNER]='#c8f135';
+
+  let hiddenManagers=new Set();
+
+  const svgLines=managers.map(name=>{
+    const pts=pacing[name];
+    const d=pts.map(p=>`${xScale(p.week)},${yScale(p.remaining)}`).join(' ');
+    const isYou=name===YOU, isWinner=name===WINNER;
+    return`<polyline id="pace-line-${name}" data-mgr="${name}"
+      points="${d}"
+      fill="none"
+      stroke="${managerColors[name]}"
+      stroke-width="${isYou||isWinner?2.5:1.2}"
+      stroke-opacity="${isYou||isWinner?1:0.45}"
+      style="transition:stroke-opacity .2s,stroke-width .2s"
+    />`;
+  }).join('');
+
+  // Grid lines
+  const gridLines=[0,25,50,75,100].map(v=>`
+    <line x1="${PAD.l}" y1="${yScale(v)}" x2="${PAD.l+chartW}" y2="${yScale(v)}" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+    <text x="${PAD.l-4}" y="${yScale(v)+3}" text-anchor="end" fill="rgba(255,255,255,0.25)" font-size="8">$${v}</text>
+  `).join('');
+
+  // X axis labels
+  const xLabels=[1,3,5,7,9,11,13,15,17].map(w=>`
+    <text x="${xScale(w)}" y="${PAD.t+chartH+14}" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">W${w}</text>
+  `).join('');
+
+  const el=document.getElementById(containerId);
+  if(!el)return;
+
+  el.innerHTML=`
+    <div class="pacing-wrap">
+      <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">${season} FAAB balance over the season — click a manager to highlight</div>
+      <div class="pacing-legend" id="pacing-legend-${season}">
+        ${managers.map(name=>`
+          <div class="pacing-legend-item" onclick="togglePacingLine('${name}','${season}')" id="pacing-leg-${season}-${name}">
+            <div class="pacing-legend-dot" style="background:${managerColors[name]}"></div>
+            <span>${name}${name===WINNER?' 🏆':name===YOU?' ◀':''}</span>
+          </div>`).join('')}
+      </div>
+      <svg class="pacing-svg" viewBox="0 0 ${W} ${H}" id="pacing-svg-${season}">
+        ${gridLines}${xLabels}${svgLines}
+      </svg>
+    </div>`;
+}
+
+function togglePacingLine(name, season){
+  const svg=document.getElementById('pacing-svg-'+season);
+  const leg=document.getElementById('pacing-leg-'+season+'-'+name);
+  const line=svg?.querySelector(`[data-mgr="${name}"]`);
+  if(!line)return;
+  const isHidden=line.getAttribute('stroke-opacity')==='0.05';
+  line.setAttribute('stroke-opacity', isHidden?
+    (name===YOU||name===WINNER?'1':'0.45'):'0.05');
+  line.setAttribute('stroke-width', isHidden?
+    (name===YOU||name===WINNER?'2.5':'1.2'):'0.5');
+  if(leg) leg.style.opacity=isHidden?'1':'0.35';
+}
+
+// ── MOST CONTESTED PLAYERS ────────────────────────────────────────────────────
+function buildContestedPlayers(weeklySource){
+  const playerContest={};
+  Object.entries(weeklySource).forEach(([weekStr,wd])=>{
+    const week=parseInt(weekStr);
+    (wd.players||[]).forEach(p=>{
+      if(p.bids.length<2)return;
+      const winner=p.bids.find(b=>b.status==='complete');
+      if(!winner)return;
+      const key=p.pid+'_'+p.name;
+      if(!playerContest[key]){
+        playerContest[key]={
+          name:p.name, pos:p.pos, pid:p.pid,
+          totalBids:0, appearances:0,
+          topBid:0, topBidMgr:'', winner:'', winnerBid:0,
+          allAuctions:[]
+        };
+      }
+      const pc=playerContest[key];
+      pc.appearances++;
+      pc.totalBids+=p.bids.length;
+      const maxBid=Math.max(...p.bids.map(b=>b.bid));
+      if(maxBid>pc.topBid){pc.topBid=maxBid;pc.topBidMgr=p.bids.find(b=>b.bid===maxBid)?.manager||'';}
+      pc.winner=winner.manager;
+      pc.winnerBid=winner.bid;
+      pc.allAuctions.push({week,bids:p.bids,winner:winner.manager,winnerBid:winner.bid});
+    });
+  });
+  return Object.values(playerContest).sort((a,b)=>b.totalBids-a.totalBids);
+}
+
+function renderContestedPlayers(containerId, weeklySource, season){
+  const players=buildContestedPlayers(weeklySource).slice(0,20);
+  const el=document.getElementById(containerId);
+  if(!el)return;
+
+  if(!players.length){el.innerHTML=`<div style="color:var(--muted);font-size:11px">No contested data.</div>`;return;}
+
+  el.innerHTML=`
+    <div class="contested-table">
+      <div class="ct-row ct-hdr">
+        <div>#</div><div>Pos</div><div>Player</div>
+        <div style="text-align:right">Bids</div>
+        <div style="text-align:right">Top bid</div>
+        <div>Bidders</div>
+      </div>
+      ${players.map((p,i)=>{
+        const bidders=[...new Set(p.allAuctions.flatMap(a=>a.bids.map(b=>b.manager)))];
+        const topBidColor=p.topBid>=20?'c-red':p.topBid>=10?'c-amber':'c-green';
+        return`<div class="ct-row">
+          <div style="color:var(--muted)">${i+1}</div>
+          <div class="bid-pos-cell" style="color:${posColor(p.pos)}">${p.pos}</div>
+          <div>
+            <div style="color:var(--text)">${p.name}</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:1px">Won by ${p.winner}${p.winner===WINNER?' 🏆':p.winner===YOU?' ◀':''}</div>
+          </div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700">${p.totalBids}</div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700" class="${topBidColor}">${fmt(p.topBid)}</div>
+          <div style="font-size:10px;color:var(--muted2)">${bidders.slice(0,4).join(', ')}${bidders.length>4?` +${bidders.length-4}`:''}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+// ── Season parser (reusable for both years) ──────────────────────────────
+function parseSeasonData(weekResults, rosterMap, playerMap, faabLeft){
+  const stats={};
+  Object.values(rosterMap).forEach(n=>{stats[n]={bids:[],failedBids:[],totalSpent:0,bidCount:0,
+    totalAttempts:0,posSpend:{},weekSpend:{},maxBid:0,maxBidPlayer:'',maxBidWeek:0,
+    remainingFAAB:null,avgBid:0};});
+  Object.entries(rosterMap).forEach(([rid,n])=>{stats[n].remainingFAAB=faabLeft[rid]??null;});
+
+  const weeklyData={};
+  weekResults.forEach((txns,wi)=>{
+    const week=wi+1;
+    const byPlayer={};
+    if(!Array.isArray(txns)){weeklyData[week]={players:[]};return;}
+    txns.forEach(t=>{
+      if(t.type!=='waiver')return;
+      const rid=t.roster_ids?.[0];
+      const name=rosterMap[rid];
+      if(!name)return;
+      const bid=t.settings?.waiver_bid??0;
+      const status=t.status;
+      const addPids=Object.keys(t.adds||{});
+      const dropPids=Object.keys(t.drops||{});
+      if(!addPids.length)return;
+      const pid=addPids[0];
+      const pname=isDefTeam(pid)?pid+' DEF':(playerMap[pid]?.name||'Player '+pid);
+      const ppos=isDefTeam(pid)?'DEF':(playerMap[pid]?.pos||'?');
+      const dropName=dropPids[0]?(isDefTeam(dropPids[0])?dropPids[0]+' DEF':(playerMap[dropPids[0]]?.name||dropPids[0])):null;
+      if(!byPlayer[pid]) byPlayer[pid]={pid,name:pname,pos:ppos,bids:[]};
+      byPlayer[pid].bids.push({manager:name,bid,status,drop:dropName,seq:t.settings?.seq??99});
+      const s=stats[name];
+      s.totalAttempts++;
+      if(status==='complete'){
+        s.bids.push({player:pname,pos:ppos,drop:dropName,bid,week});
+        s.totalSpent+=bid;s.bidCount++;
+        s.weekSpend[week]=(s.weekSpend[week]||0)+bid;
+        s.posSpend[ppos]=(s.posSpend[ppos]||0)+bid;
+        if(bid>s.maxBid){s.maxBid=bid;s.maxBidPlayer=pname;s.maxBidWeek=week;}
+      }else{s.failedBids.push({player:pname,pos:ppos,bid,week,pid});}
+    });
+    weeklyData[week]={players:Object.values(byPlayer)};
+  });
+  Object.values(stats).forEach(s=>{s.avgBid=s.bidCount>0?s.totalSpent/s.bidCount:0;});
+  return{stats,weeklyData};
+}
+
+// ── History view renderer ─────────────────────────────────────────────────
+function renderHistory(){
+  const el=document.getElementById('history-content');
+  if(!Object.keys(APP.stats2024).length){
+    el.innerHTML=`<div style="color:var(--muted);font-size:12px;padding:2rem 0;text-align:center">2024 data still loading...</div>`;
+    return;
+  }
+
+  const managers=Object.keys(ROSTER_MAP).map(r=>ROSTER_MAP[r]);
+  const s25=APP.stats; const s24=APP.stats2024;
+
+  // League-level summary cards
+  const spend25=managers.reduce((t,n)=>t+(s25[n]?.totalSpent||0),0);
+  const spend24=managers.reduce((t,n)=>t+(s24[n]?.totalSpent||0),0);
+  const bids25=managers.reduce((t,n)=>t+(s25[n]?.bidCount||0),0);
+  const bids24=managers.reduce((t,n)=>t+(s24[n]?.bidCount||0),0);
+
+  // Sort by 2025 spend desc for table
+  const sorted=[...managers].sort((a,b)=>(s25[b]?.totalSpent||0)-(s25[a]?.totalSpent||0));
+
+  el.innerHTML=`
+    <div class="sum-grid" style="margin-bottom:1.5rem">
+      <div class="sum-card">
+        <div class="sum-val">${fmt(spend25)}</div>
+        <div class="sum-lbl">2025 league spend</div>
+        <div class="sum-sub" style="color:${spend25>spend24?'var(--red)':'var(--green)'}">${spend25>spend24?'▲':'▼'} ${fmt(Math.abs(spend25-spend24))} vs 2024</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-val">${fmt(spend24)}</div>
+        <div class="sum-lbl">2024 league spend</div>
+        <div class="sum-sub">${fmt(1200-spend24)} unspent</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-val">${bids25}</div>
+        <div class="sum-lbl">2025 winning bids</div>
+        <div class="sum-sub" style="color:${bids25>bids24?'var(--red)':'var(--green)'}">${bids25>bids24?'▲':'▼'} ${Math.abs(bids25-bids24)} vs 2024</div>
+      </div>
+      <div class="sum-card">
+        <div class="sum-val">${bids24}</div>
+        <div class="sum-lbl">2024 winning bids</div>
+        <div class="sum-sub">${fmt(Math.round(spend24/Math.max(bids24,1)))} avg per add</div>
+      </div>
+    </div>
+
+    <div class="sec" style="margin-top:0">Manager comparison — 2024 vs 2025</div>
+    <div class="yoy-table">
+      <div class="yoy-row yoy-hdr">
+        <div>Manager</div>
+        <div style="text-align:right">2024 spent</div>
+        <div style="text-align:right">2025 spent</div>
+        <div style="text-align:right">Δ spend</div>
+        <div style="text-align:right">2024 adds</div>
+        <div style="text-align:right">2025 adds</div>
+        <div style="text-align:right">2024 avg</div>
+        <div style="text-align:right">2025 avg</div>
+        <div>Trend</div>
+      </div>
+      ${sorted.map(name=>{
+        const a=s24[name]||{totalSpent:0,bidCount:0,avgBid:0};
+        const b=s25[name]||{totalSpent:0,bidCount:0,avgBid:0};
+        const delta=b.totalSpent-a.totalSpent;
+        const deltaColor=Math.abs(delta)<5?'var(--muted2)':delta>0?'var(--red)':'var(--green)';
+        const trend=delta>10?'📈 More aggressive':delta<-10?'📉 More conservative':Math.abs(delta)<=5?'➡ Consistent':'〰 Similar';
+        return`<div class="yoy-row" onclick="goToManager('${name}')">
+          <div class="${nameClass(name)}" style="font-weight:500">${name}${name===WINNER?' 🏆':name===WINNER_2024?' 🥇':name===YOU?' ◀':''}</div>
+          <div style="text-align:right;color:var(--muted2)">${fmt(a.totalSpent)}</div>
+          <div style="text-align:right;color:${b.totalSpent>=50?'var(--red)':b.totalSpent>=25?'var(--amber)':'var(--green)'}">${fmt(b.totalSpent)}</div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700;color:${deltaColor}">${delta>=0?'+':''}${fmt(delta)}</div>
+          <div style="text-align:right;color:var(--muted2)">${a.bidCount}</div>
+          <div style="text-align:right">${b.bidCount}</div>
+          <div style="text-align:right;color:var(--muted2)">${a.avgBid>0?fmt(Math.round(a.avgBid)):'-'}</div>
+          <div style="text-align:right">${b.avgBid>0?fmt(Math.round(b.avgBid)):'-'}</div>
+          <div style="font-size:11px;color:var(--muted2)">${trend}</div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="sec">Spending patterns — 2024 vs 2025 (click a manager to drill in)</div>
+    <div class="yoy-bars-grid">
+      ${sorted.map(name=>{
+        const a=s24[name]||{totalSpent:0};
+        const b=s25[name]||{totalSpent:0};
+        const delta=b.totalSpent-a.totalSpent;
+        const deltaColor=Math.abs(delta)<5?'var(--muted2)':delta>0?'var(--red)':'var(--green)';
+        const nc=nameClass(name)||'var(--text)';
+        return`<div class="yoy-bar-card" onclick="goToManager('${name}')">
+          <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px;gap:4px;flex-wrap:wrap">
+            <span style="font-size:12px;font-weight:500;color:${nc}">${name}${name===WINNER?' 🏆':name===WINNER_2024?' 🥇':''}</span>
+            <span style="font-size:10px;font-family:'Syne',sans-serif;font-weight:700;color:${deltaColor};white-space:nowrap">${delta>=0?'+':''}${fmt(delta)}</span>
+          </div>
+          <div style="display:flex;align-items:flex-end;gap:8px;height:64px">
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+              <div style="font-size:9px;color:var(--muted2);font-family:'Syne',sans-serif;font-weight:700">${fmt(a.totalSpent)}</div>
+              <div style="width:100%;background:rgba(96,165,250,.45);border-radius:2px 2px 0 0;height:${Math.max(Math.round(a.totalSpent/100*48),a.totalSpent>0?3:0)}px"></div>
+              <div style="font-size:8px;color:var(--muted);letter-spacing:.04em">2024</div>
+            </div>
+            <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+              <div style="font-size:9px;color:var(--muted2);font-family:'Syne',sans-serif;font-weight:700">${fmt(b.totalSpent)}</div>
+              <div style="width:100%;background:var(--lime);border-radius:2px 2px 0 0;height:${Math.max(Math.round(b.totalSpent/100*48),b.totalSpent>0?3:0)}px;opacity:.75"></div>
+              <div style="font-size:8px;color:var(--muted);letter-spacing:.04em">2025</div>
+            </div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div class="sec">Position spending shifts — where did the money go?</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">
+      ${['RB','WR','QB','TE','DEF','K'].map(pos=>{
+        const t24=managers.reduce((t,n)=>t+(s24[n]?.posSpend?.[pos]||0),0);
+        const t25=managers.reduce((t,n)=>t+(s25[n]?.posSpend?.[pos]||0),0);
+        const d=t25-t24;
+        return`<div class="pos-card" style="border-color:${posColor(pos)}22">
+          <div class="pos-name" style="color:${posColor(pos)}">${pos}</div>
+          <div style="display:flex;gap:8px;justify-content:center;margin:6px 0">
+            <div style="text-align:center"><div style="font-size:10px;color:var(--muted2)">${fmt(t24)}</div><div style="font-size:9px;color:var(--muted)">2024</div></div>
+            <div style="text-align:center"><div style="font-size:10px;color:var(--text)">${fmt(t25)}</div><div style="font-size:9px;color:var(--muted)">2025</div></div>
+          </div>
+          <div style="font-size:11px;font-family:'Syne',sans-serif;font-weight:700;color:${Math.abs(d)<3?'var(--muted2)':d>0?'var(--red)':'var(--green)'}">${d>=0?'+':''}${fmt(d)}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
+async function main(){
+  try{
+    // Fetch 2025 rosters + transactions AND 2024 in parallel
+    setMsg('Fetching rosters & transactions (2024 + 2025)...'); setProg(5);
+    const [rosters, rosters2024, weekResults, weekResults2024] = await Promise.all([
+      fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/rosters`),
+      fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/rosters`),
+      Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/transactions/${i+1}`).catch(()=>[]))),
+      Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/transactions/${i+1}`).catch(()=>[])))
+    ]);
+    setProg(50);
+
+    const faabLeft={}, faabLeft2024={};
+    rosters.forEach(r=>{faabLeft[r.roster_id]=BUDGET-(r.settings?.waiver_budget_used??0);});
+    rosters2024.forEach(r=>{faabLeft2024[r.roster_id]=BUDGET-(r.settings?.waiver_budget_used??0);});
+
+    // Collect all pids from both seasons
+    const neededPids=new Set();
+    [...weekResults,...weekResults2024].forEach(txns=>{
+      if(!Array.isArray(txns))return;
+      txns.forEach(t=>{
+        if(t.type!=='waiver')return;
+        [...Object.keys(t.adds||{}),...Object.keys(t.drops||{})].forEach(pid=>{
+          if(!isDefTeam(pid))neededPids.add(pid);
+        });
+      });
+    });
+
+    setMsg('Fetching player data...'); setProg(55);
+    let playerMap={};
+    try{
+      const all=await fetchJ('https://api.sleeper.app/v1/players/nfl');
+      setProg(82);
+      neededPids.forEach(pid=>{
+        const p=all[pid];
+        if(p) playerMap[pid]={name:p.full_name||(p.first_name+' '+p.last_name).trim()||pid,pos:p.fantasy_positions?.[0]||p.position||'?'};
+        else playerMap[pid]={name:'Player '+pid,pos:'?'};
+      });
+    }catch(e){neededPids.forEach(pid=>{playerMap[pid]={name:pid,pos:'?'};});}
+    APP.playerMap=playerMap;
+
+    setMsg('Parsing transactions...'); setProg(90);
+
+    // Parse both seasons using shared helper
+    const {stats, weeklyData}=parseSeasonData(weekResults, ROSTER_MAP, playerMap, faabLeft);
+    const {stats:stats2024, weeklyData:weeklyData2024}=parseSeasonData(weekResults2024, ROSTER_MAP, playerMap, faabLeft2024);
+
+    APP.stats=stats; APP.weeklyData=weeklyData;
+    APP.stats2024=stats2024; APP.weeklyData2024=weeklyData2024;
+
+    // Week + position totals for 2024
+    const weekTotals2024={};
+    for(let w=1;w<=18;w++) weekTotals2024[w]=Object.values(stats2024).reduce((s,m)=>s+(m.weekSpend[w]||0),0);
+    APP.weekTotals2024=weekTotals2024;
+    const posTotals2024={};
+    Object.values(stats2024).forEach(s=>{Object.entries(s.posSpend).forEach(([p,a])=>{posTotals2024[p]=(posTotals2024[p]||0)+a;});});
+    APP.posTotals2024=posTotals2024;
+
+    const weekTotals={};
+    for(let w=1;w<=18;w++) weekTotals[w]=Object.values(stats).reduce((sum,s)=>sum+(s.weekSpend[w]||0),0);
+    APP.weekTotals=weekTotals;
+
+    const posTotals={};
+    Object.values(stats).forEach(s=>{Object.entries(s.posSpend).forEach(([p,a])=>{posTotals[p]=(posTotals[p]||0)+a;});});
+    APP.posTotals=posTotals;
+
+    const totalSpend=Object.values(stats).reduce((s,m)=>s+m.totalSpent,0);
+    const totalBids=Object.values(stats).reduce((s,m)=>s+m.bidCount,0);
+    const maxBid=Math.max(...Object.values(stats).map(m=>m.maxBid),0);
+    const maxBidMgr=Object.entries(stats).find(([,s])=>s.maxBid===maxBid);
+    const mostActive=Object.entries(stats).sort((a,b)=>b[1].bidCount-a[1].bidCount)[0];
+    const maxWk=Math.max(...Object.values(weekTotals),1);
+
+    APP.sorted=Object.entries(stats).sort((a,b)=>{
+      if(a[0]===WINNER)return -1;if(b[0]===WINNER)return 1;
+      if(a[0]===YOU)return -1;if(b[0]===YOU)return 1;
+      return b[1].totalSpent-a[1].totalSpent;
+    });
+
+    setProg(100);
+
+    // RENDER OVERVIEW
+    document.getElementById('sum-grid').innerHTML=`
+      <div class="sum-card"><div class="sum-val">${fmt(totalSpend)}</div><div class="sum-lbl">Total FAAB spent</div><div class="sum-sub">${fmt(1200-totalSpend)} unspent league-wide</div></div>
+      <div class="sum-card"><div class="sum-val">${totalBids}</div><div class="sum-lbl">Winning bids</div><div class="sum-sub">${fmt(Math.round(totalSpend/Math.max(totalBids,1)))} avg per add</div></div>
+      <div class="sum-card"><div class="sum-val">${maxBid>0?fmt(maxBid):'-'}</div><div class="sum-lbl">Largest single bid</div><div class="sum-sub">${maxBidMgr?maxBidMgr[0]:''}</div></div>
+      <div class="sum-card"><div class="sum-val">${mostActive[0]}</div><div class="sum-lbl">Most active</div><div class="sum-sub">${mostActive[1].bidCount} winning bids</div></div>`;
+
+    document.getElementById('wk-bars').innerHTML=Array.from({length:18},(_,i)=>i+1).map(w=>{
+      const amt=weekTotals[w]||0;
+      const h=Math.max(Math.round(amt/maxWk*68),amt>0?3:0);
+      return`<div class="wk-col" id="wkcol-${w}" onclick="renderOverviewWeekDetail(${w})">
+        <div style="flex:1;width:100%;position:relative;display:flex;align-items:flex-end">
+          ${amt>0?`<div class="wk-amt">${'$'+amt}</div>`:''}
+          <div class="wk-bar" style="height:${h}px;width:100%"></div>
+        </div>
+        <div class="wk-lbl">W${w}</div>
+      </div>`;
+    }).join('');
+
+    document.getElementById('pos-grid').innerHTML=Object.entries(posTotals).sort((a,b)=>b[1]-a[1]).map(([pos,amt])=>`
+      <div class="pos-card">
+        <div class="pos-name">${pos}</div>
+        <div class="pos-val" style="color:${posColor(pos)}">${fmt(amt)}</div>
+        <div class="pos-sub">${totalSpend>0?Math.round(amt/totalSpend*100):0}% of spend</div>
+      </div>`).join('');
+
+    document.getElementById('lb').innerHTML=`
+      <div class="lb-row lb-hdr">
+        <div></div><div>Manager</div>
+        <div class="lb-r">Spent</div><div class="lb-r">Adds</div>
+        <div class="lb-r">Avg bid</div><div class="lb-r">Top bid</div>
+        <div class="lb-r">Remaining</div>
+      </div>
+      ${APP.sorted.map(([name,s],i)=>`
+        <div class="lb-row" onclick="goToManager('${name}')">
+          <div style="color:var(--muted)">${i+1}</div>
+          <div class="${nameClass(name)}">${name}${name===WINNER?' 🏆':name===YOU?' ◀':''}</div>
+          <div class="lb-r ${s.totalSpent>=35?'c-red':s.totalSpent>=15?'c-amber':'c-green'}">${fmt(s.totalSpent)}</div>
+          <div class="lb-r">${s.bidCount}</div>
+          <div class="lb-r">${s.avgBid>0?fmt(Math.round(s.avgBid)):'-'}</div>
+          <div class="lb-r ${s.maxBid>=25?'c-red':s.maxBid>=12?'c-amber':s.maxBid>0?'c-green':'c-muted'}">${s.maxBid>0?fmt(s.maxBid):'-'}</div>
+          <div class="lb-r ${s.remainingFAAB!==null&&s.remainingFAAB>=50?'c-green':s.remainingFAAB!==null&&s.remainingFAAB<=15?'c-red':'c-muted'}">${s.remainingFAAB!==null?fmt(s.remainingFAAB):'—'}</div>
+        </div>`).join('')}`;
+
+    // RENDER MANAGER GRID
+    document.getElementById('mgr-grid').innerHTML=APP.sorted.map(([name,s])=>{
+      const arch=archetype(s);
+      const pct=Math.min(Math.round(s.totalSpent/BUDGET*100),100);
+      return`<div class="mgr-card ${name===WINNER?'winner':name===YOU?'you':''}" onclick="showManagerDetail('${name}')">
+        <div class="mgr-card-header">
+          <span class="mgr-card-name ${nameClass(name)}">${name}${name===WINNER?' 🏆':''}</span>
+          <div class="badges">
+            ${name===WINNER?`<span class="bdg bdg-lime">Champion</span>`:''}
+            ${name===YOU?`<span class="bdg bdg-blue">You</span>`:''}
+            <span class="bdg bdg-gray">${arch}</span>
+          </div>
+        </div>
+        <div class="faab-track"><div class="faab-fill" style="width:${pct}%"></div></div>
+        <div class="mgr-card-metrics">
+          <div class="met"><div class="met-v ${s.totalSpent>=35?'c-red':s.totalSpent<=5?'c-muted':'c-lime'}">${fmt(s.totalSpent)}</div><div class="met-l">spent</div></div>
+          <div class="met"><div class="met-v">${s.bidCount}</div><div class="met-l">adds</div></div>
+          <div class="met"><div class="met-v ${s.avgBid>=15?'c-amber':''}">${s.avgBid>0?fmt(Math.round(s.avgBid)):'-'}</div><div class="met-l">avg bid</div></div>
+          <div class="met"><div class="met-v ${s.remainingFAAB!==null&&s.remainingFAAB>=50?'c-green':s.remainingFAAB!==null&&s.remainingFAAB<=15?'c-red':'c-muted'}">${s.remainingFAAB!==null?fmt(s.remainingFAAB):'—'}</div><div class="met-l">left</div></div>
+        </div>
+        <div class="mgr-card-hint">Click to drill in →</div>
+      </div>`;
+    }).join('');
+
+    // RENDER WEEKLY NAV
+    document.getElementById('week-nav').innerHTML=Array.from({length:18},(_,i)=>i+1).map(w=>{
+      const hasActivity=(weeklyData[w]?.players?.length||0)>0;
+      return`<button class="week-btn ${hasActivity?'has-activity':''}" data-week="${w}" onclick="renderWeek(${w})">Wk ${w}${hasActivity?` (${weeklyData[w].players.length})`:''}`;
+    }).join('');
+
+    // Auto-select first active week
+    const firstActive=Array.from({length:18},(_,i)=>i+1).find(w=>(weeklyData[w]?.players?.length||0)>0)||1;
+    renderWeek(firstActive);
+
+    // Render pacing chart + contested players
+    renderPacingChart('pacing-2025', stats, 2025);
+    renderContestedPlayers('contested-2025', weeklyData, 2025);
+
+    document.getElementById('loader').style.display='none';
+    document.getElementById('views').style.display='block';
+
+  }catch(err){
+    document.getElementById('loader').innerHTML=`<div style="color:var(--red);padding:2rem;background:rgba(248,113,113,.08);border-radius:8px;border:.5px solid var(--red)">Error: ${err.message}</div>`;
+    console.error(err);
+  }
+}
+
+main();
+</script>
+</body>
+</html>
