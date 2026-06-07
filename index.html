@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -191,6 +192,40 @@ h1 em{color:var(--lime);font-style:normal}
 .yoy-bar-card{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.1rem;cursor:pointer;transition:border-color .15s}
 .yoy-bar-card:hover{border-color:var(--b2)}
 .view{display:none}.view.active{display:block}
+
+/* Rivalry matrix */
+.rivalry-matrix{overflow-x:auto;margin-bottom:1.5rem}
+.rm-table{border-collapse:collapse;min-width:100%}
+.rm-cell{width:70px;height:54px;text-align:center;vertical-align:middle;border:.5px solid var(--b1);font-size:10px;position:relative;cursor:pointer;transition:filter .12s}
+.rm-cell:hover{filter:brightness(1.3)}
+.rm-cell.header{background:var(--s2);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;cursor:default;width:90px;text-align:right;padding-right:8px}
+.rm-cell.header:hover{filter:none}
+.rm-cell.col-header{background:var(--s2);font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;cursor:default;height:36px}
+.rm-cell.col-header:hover{filter:none}
+.rm-cell.self{background:var(--bg);cursor:default}
+.rm-cell.self:hover{filter:none}
+.rm-win{font-family:'Syne',sans-serif;font-weight:700;font-size:13px}
+.rm-sub{font-size:9px;color:var(--muted);margin-top:1px}
+
+/* Drill-down modal overlay */
+.rivalry-detail{background:var(--s1);border:.5px solid var(--b2);border-radius:10px;padding:1.1rem 1.25rem;margin-top:1rem}
+.rivalry-detail-title{font-family:'Syne',sans-serif;font-size:15px;font-weight:700;margin-bottom:12px}
+.rd-row{display:grid;grid-template-columns:36px 30px 1fr 70px 70px 60px;gap:8px;align-items:center;padding:7px 0;border-bottom:.5px solid var(--b1);font-size:11px}
+.rd-row:last-child{border-bottom:none}
+.rd-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;padding-bottom:8px;border-bottom:.5px solid var(--b2)}
+
+/* Budget pacing chart */
+.pacing-wrap{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1.1rem 1.25rem;margin-bottom:.5rem}
+.pacing-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.pacing-legend-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--muted2);cursor:pointer}
+.pacing-legend-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.pacing-svg{width:100%;overflow:visible}
+
+/* Most contested */
+.contested-table{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;overflow:hidden}
+.ct-row{display:grid;grid-template-columns:28px 30px 1fr 44px 60px 1fr;gap:8px;align-items:center;padding:8px 1.1rem;border-bottom:.5px solid var(--b1);font-size:11px}
+.ct-row:last-child{border-bottom:none}
+.ct-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;background:var(--s2)}
 </style>
 </head>
 <body>
@@ -204,6 +239,7 @@ h1 em{color:var(--lime);font-style:normal}
       <button class="nav-tab active" onclick="showView('overview')">Overview</button>
       <button class="nav-tab" onclick="showView('managers')">Managers</button>
       <button class="nav-tab" onclick="showView('weekly')">Weekly</button>
+      <button class="nav-tab" onclick="showView('rivals')">Rivals</button>
       <button class="nav-tab" onclick="showView('history')">2024 vs 2025</button>
     </div>
   </div>
@@ -231,6 +267,10 @@ h1 em{color:var(--lime);font-style:normal}
       <div class="pos-grid" id="pos-grid"></div>
       <div class="sec">FAAB leaderboard — click a row to view manager</div>
       <div class="lb" id="lb"></div>
+      <div class="sec">budget pacing — remaining FAAB by week</div>
+      <div id="pacing-2025"></div>
+      <div class="sec">most contested players — 2025 season</div>
+      <div id="contested-2025"></div>
     </div>
 
     <!-- MANAGERS -->
@@ -256,6 +296,12 @@ h1 em{color:var(--lime);font-style:normal}
       </div>
       <div id="week-summary" class="week-summary"></div>
       <div id="week-content"></div>
+    </div>
+
+    <!-- RIVALS -->
+    <div class="view" id="view-rivals">
+      <div class="sec">rivalry matrix — contested auction head-to-head records</div>
+      <div id="rivals-content"><div style="color:var(--muted);font-size:12px;padding:2rem 0;text-align:center">Loading...</div></div>
     </div>
 
     <!-- HISTORY -->
@@ -502,13 +548,14 @@ function showView(v){
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach((t,i)=>{
-    t.classList.toggle('active',['overview','managers','weekly','history'][i]===v);
+    t.classList.toggle('active',['overview','managers','weekly','rivals','history'][i]===v);
   });
   if(v==='managers'){
     document.getElementById('mgr-grid-view').style.display='block';
     document.getElementById('mgr-detail-view').style.display='none';
   }
   if(v==='history') renderHistory();
+  if(v==='rivals') renderRivals();
 }
 
 function setFilter(f,btn){
@@ -1142,6 +1189,384 @@ function goToManager(name){
   setTimeout(()=>showManagerDetail(name),50);
 }
 
+
+// ── RIVALRY MATRIX ───────────────────────────────────────────────────────────
+function buildRivalryData(season){
+  const weeklySource=season===2024?APP.weeklyData2024:APP.weeklyData;
+  const managers=Object.values(ROSTER_MAP);
+
+  // rivalry[A][B] = {won, lost, totalBids, dollarWon, dollarLost, auctions:[]}
+  const rivalry={};
+  managers.forEach(a=>{
+    rivalry[a]={};
+    managers.forEach(b=>{ if(a!==b) rivalry[a][b]={won:0,lost:0,totalBids:0,dollarWon:0,dollarLost:0,auctions:[]}; });
+  });
+
+  Object.entries(weeklySource).forEach(([weekStr,wd])=>{
+    const week=parseInt(weekStr);
+    (wd.players||[]).forEach(p=>{
+      if(p.bids.length<2)return; // only contested
+      const winner=p.bids.find(b=>b.status==='complete');
+      if(!winner)return;
+      // For each losing bid, record rivalry between winner and loser
+      p.bids.filter(b=>b.status!=='complete').forEach(loser=>{
+        if(!rivalry[winner.manager]||!rivalry[winner.manager][loser.manager])return;
+        rivalry[winner.manager][loser.manager].won++;
+        rivalry[winner.manager][loser.manager].totalBids++;
+        rivalry[winner.manager][loser.manager].dollarWon+=winner.bid;
+        rivalry[winner.manager][loser.manager].auctions.push({
+          player:p.name,pos:p.pos,week,
+          winnerBid:winner.bid,loserBid:loser.bid,
+          margin:winner.bid-loser.bid,
+          youWon:true
+        });
+        rivalry[loser.manager][winner.manager].lost++;
+        rivalry[loser.manager][winner.manager].totalBids++;
+        rivalry[loser.manager][winner.manager].dollarLost+=loser.bid;
+        rivalry[loser.manager][winner.manager].auctions.push({
+          player:p.name,pos:p.pos,week,
+          winnerBid:winner.bid,loserBid:loser.bid,
+          margin:winner.bid-loser.bid,
+          youWon:false
+        });
+      });
+    });
+  });
+  return rivalry;
+}
+
+function cellColor(won, lost){
+  const total=won+lost;
+  if(total===0)return'var(--s2)';
+  const rate=won/total;
+  if(rate>=0.7)return'rgba(52,211,153,0.18)';
+  if(rate>=0.5)return'rgba(200,241,53,0.12)';
+  if(rate>=0.3)return'rgba(251,191,36,0.12)';
+  return'rgba(248,113,113,0.14)';
+}
+
+let _rivalryCurrent={season:2025,rivalry:null};
+
+function renderRivals(){
+  if(!_rivalryCurrent.rivalry){
+    _rivalryCurrent.rivalry=buildRivalryData(2025);
+    _rivalryCurrent.rivalry2024=buildRivalryData(2024);
+  }
+  const el=document.getElementById('rivals-content');
+  const managers=Object.values(ROSTER_MAP);
+  const r=_rivalryCurrent.rivalry;
+  const r24=_rivalryCurrent.rivalry2024;
+
+  // Sort managers: winner first, you second, then by total contested bids desc
+  const sorted=[...managers].sort((a,b)=>{
+    if(a===WINNER)return -1;if(b===WINNER)return 1;
+    if(a===YOU)return -1;if(b===YOU)return 1;
+    const aTotal=managers.reduce((s,m)=>m!==a?s+(r[a][m]?.totalBids||0):s,0);
+    const bTotal=managers.reduce((s,m)=>m!==b?s+(r[b][m]?.totalBids||0):s,0);
+    return bTotal-aTotal;
+  });
+
+  // Summary stats
+  const myRivals=managers.filter(m=>m!==YOU).map(m=>({
+    name:m,
+    won:r[YOU]?.[m]?.won||0,
+    lost:r[YOU]?.[m]?.lost||0,
+    total:(r[YOU]?.[m]?.totalBids||0)
+  })).filter(m=>m.total>0).sort((a,b)=>b.total-a.total);
+
+  const totalWon=myRivals.reduce((s,m)=>s+m.won,0);
+  const totalLost=myRivals.reduce((s,m)=>s+m.lost,0);
+  const biggestRival=myRivals.length>0?myRivals.reduce((a,b)=>b.total>a.total?b:a):null;
+  const bestRecord=myRivals.filter(m=>m.total>=3).sort((a,b)=>(b.won/Math.max(b.total,1))-(a.won/Math.max(a.total,1)))[0];
+  const worstRecord=myRivals.filter(m=>m.total>=3).sort((a,b)=>(a.won/Math.max(a.total,1))-(b.won/Math.max(b.total,1)))[0];
+
+  el.innerHTML=`
+    <div class="sum-grid" style="margin-bottom:1.5rem">
+      <div class="sum-card"><div class="sum-val c-lime">${totalWon}</div><div class="sum-lbl">Contested wins (2025)</div><div class="sum-sub">vs ${totalLost} losses</div></div>
+      <div class="sum-card"><div class="sum-val">${totalWon+totalLost>0?Math.round(totalWon/(totalWon+totalLost)*100):0}%</div><div class="sum-lbl">Overall win rate</div><div class="sum-sub">in contested auctions</div></div>
+      <div class="sum-card"><div class="sum-val ${nameClass(biggestRival?.name)||''}">${biggestRival?.name||'—'}</div><div class="sum-lbl">Most contested against</div><div class="sum-sub">${biggestRival?.total||0} shared auctions</div></div>
+      <div class="sum-card"><div class="sum-val c-green">${bestRecord?.name||'—'}</div><div class="sum-lbl">Best record against</div><div class="sum-sub">${bestRecord?bestRecord.won+'-'+bestRecord.lost:''}</div></div>
+      <div class="sum-card"><div class="sum-val c-red">${worstRecord?.name||'—'}</div><div class="sum-lbl">Worst record against</div><div class="sum-sub">${worstRecord?worstRecord.won+'-'+worstRecord.lost:''}</div></div>
+    </div>
+
+    <div class="sec" style="margin-top:0">Season toggle</div>
+    <div style="display:flex;gap:6px;margin-bottom:1rem">
+      <button id="rivals-btn-2025" onclick="switchRivalsSeason(2025)" style="font-size:10px;padding:4px 12px;border-radius:5px;border:.5px solid var(--lime);background:var(--lime);color:#0d0d0f;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500">2025</button>
+      <button id="rivals-btn-2024" onclick="switchRivalsSeason(2024)" style="font-size:10px;padding:4px 12px;border-radius:5px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">2024</button>
+    </div>
+
+    <div class="sec">head-to-head matrix — click any cell to see auction detail</div>
+    <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Row = manager · Column = opponent · Cell shows W-L record in contested auctions · <span style="color:var(--green)">Green</span> = winning · <span style="color:var(--red)">Red</span> = losing</p>
+    <div class="rivalry-matrix" id="rivalry-matrix-wrap"></div>
+    <div id="rivalry-drill"></div>
+  `;
+
+  renderRivalryMatrix(sorted, r);
+}
+
+function renderRivalryMatrix(sorted, r){
+  const wrap=document.getElementById('rivalry-matrix-wrap');
+  if(!wrap)return;
+
+  let tableHTML=`<table class="rm-table"><thead><tr>
+    <th class="rm-cell header">Manager</th>
+    ${sorted.map(m=>`<th class="rm-cell col-header" style="font-size:9px;color:${nameClass(m)||'var(--muted)'};padding:4px 2px">${m.length>8?m.slice(0,8)+'…':m}</th>`).join('')}
+    <th class="rm-cell col-header">Total W-L</th>
+  </tr></thead><tbody>`;
+
+  sorted.forEach(rowMgr=>{
+    const totalWon=sorted.reduce((s,col)=>col!==rowMgr?s+(r[rowMgr]?.[col]?.won||0):s,0);
+    const totalLost=sorted.reduce((s,col)=>col!==rowMgr?s+(r[rowMgr]?.[col]?.lost||0):s,0);
+    const rowColor=totalWon+totalLost>0?(totalWon/(totalWon+totalLost)>=0.5?'var(--green)':'var(--red)'):'var(--muted)';
+
+    tableHTML+=`<tr>
+      <td class="rm-cell header" style="color:${nameClass(rowMgr)||'var(--muted2)'};font-size:10px;font-weight:500">${rowMgr}${rowMgr===WINNER?' 🏆':rowMgr===YOU?' ◀':''}</td>
+      ${sorted.map(colMgr=>{
+        if(rowMgr===colMgr) return`<td class="rm-cell self">—</td>`;
+        const d=r[rowMgr]?.[colMgr]||{won:0,lost:0,totalBids:0};
+        const bg=cellColor(d.won,d.lost);
+        const wr=d.totalBids>0?Math.round(d.won/d.totalBids*100):null;
+        return`<td class="rm-cell" style="background:${bg}" onclick="showRivalryDrill('${rowMgr}','${colMgr}')">
+          <div class="rm-win" style="color:${d.won>d.lost?'var(--green)':d.won<d.lost?'var(--red)':'var(--muted2)'}">${d.won}-${d.lost}</div>
+          ${d.totalBids>0?`<div class="rm-sub">${wr}%</div>`:'<div class="rm-sub" style="color:var(--muted)">—</div>'}
+        </td>`;
+      }).join('')}
+      <td class="rm-cell" style="background:var(--s2)">
+        <div class="rm-win" style="color:${rowColor}">${totalWon}-${totalLost}</div>
+        ${totalWon+totalLost>0?`<div class="rm-sub">${Math.round(totalWon/(totalWon+totalLost)*100)}%</div>`:''}
+      </td>
+    </tr>`;
+  });
+
+  tableHTML+=`</tbody></table>`;
+  wrap.innerHTML=tableHTML;
+}
+
+function switchRivalsSeason(season){
+  const r=season===2024?_rivalryCurrent.rivalry2024:_rivalryCurrent.rivalry;
+  const managers=Object.values(ROSTER_MAP);
+  const sorted=[...managers].sort((a,b)=>{
+    if(a===WINNER)return -1;if(b===WINNER)return 1;
+    if(a===YOU)return -1;if(b===YOU)return 1;
+    return 0;
+  });
+  renderRivalryMatrix(sorted,r);
+  document.getElementById('rivalry-drill').innerHTML='';
+  ['2024','2025'].forEach(y=>{
+    const btn=document.getElementById('rivals-btn-'+y);
+    if(!btn)return;
+    if(parseInt(y)===season){btn.style.background='var(--lime)';btn.style.color='#0d0d0f';btn.style.borderColor='var(--lime)';btn.style.fontWeight='500';}
+    else{btn.style.background='transparent';btn.style.color='var(--muted2)';btn.style.borderColor='var(--b2)';btn.style.fontWeight='400';}
+  });
+  _rivalryCurrent.currentSeason=season;
+}
+
+function showRivalryDrill(rowMgr, colMgr){
+  const season=_rivalryCurrent.currentSeason||2025;
+  const r=season===2024?_rivalryCurrent.rivalry2024:_rivalryCurrent.rivalry;
+  const d=r[rowMgr]?.[colMgr];
+  if(!d||!d.auctions.length){
+    document.getElementById('rivalry-drill').innerHTML=`<div class="rivalry-detail"><div style="font-size:11px;color:var(--muted)">No contested auctions between ${rowMgr} and ${colMgr} in ${season}.</div></div>`;
+    return;
+  }
+
+  const sorted=[...d.auctions].sort((a,b)=>b.winnerBid-a.winnerBid);
+  const winAuctions=sorted.filter(a=>a.youWon);
+  const lossAuctions=sorted.filter(a=>!a.youWon);
+
+  document.getElementById('rivalry-drill').innerHTML=`
+    <div class="rivalry-detail">
+      <div class="rivalry-detail-title">
+        <span style="color:${nameClass(rowMgr)||'var(--text)'}">${rowMgr}</span>
+        <span style="color:var(--muted)"> vs </span>
+        <span style="color:${nameClass(colMgr)||'var(--text)'}">${colMgr}</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px">${season} · ${d.won}-${d.lost} record · ${d.totalBids} contested auctions</span>
+      </div>
+      <div class="rd-row rd-hdr">
+        <div>Wk</div><div>Pos</div><div>Player</div>
+        <div style="text-align:right">${rowMgr.slice(0,6)} bid</div>
+        <div style="text-align:right">${colMgr.slice(0,6)} bid</div>
+        <div style="text-align:right">Result</div>
+      </div>
+      ${sorted.map(a=>{
+        const rowBid=a.youWon?a.winnerBid:a.loserBid;
+        const colBid=a.youWon?a.loserBid:a.winnerBid;
+        const margin=Math.abs(a.margin);
+        const resultColor=a.youWon?'var(--green)':'var(--red)';
+        const resultTxt=a.youWon?`✓ Won +${fmt(margin)}`:`✗ Lost -${fmt(margin)}`;
+        return`<div class="rd-row">
+          <div style="color:var(--muted);font-size:10px">Wk ${a.week}</div>
+          <div class="bid-pos-cell" style="color:${posColor(a.pos)}">${a.pos}</div>
+          <div style="color:var(--text)">${a.player}</div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700;color:${resultColor}">${fmt(rowBid)}</div>
+          <div style="text-align:right;color:var(--muted2)">${fmt(colBid)}</div>
+          <div style="text-align:right;font-size:10px;color:${resultColor}">${resultTxt}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+  document.getElementById('rivalry-drill').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+
+// ── BUDGET PACING CHART ───────────────────────────────────────────────────────
+function buildPacingData(statsSource){
+  const managers=Object.values(ROSTER_MAP);
+  // For each manager, compute running FAAB spent week by week → remaining balance
+  const pacing={};
+  managers.forEach(name=>{
+    const s=statsSource[name]||{weekSpend:{}};
+    let remaining=BUDGET;
+    const points=[{week:0,remaining:BUDGET}];
+    for(let w=1;w<=18;w++){
+      remaining-=(s.weekSpend[w]||0);
+      points.push({week:w,remaining:Math.max(remaining,0)});
+    }
+    pacing[name]=points;
+  });
+  return pacing;
+}
+
+function renderPacingChart(containerId, statsSource, season){
+  const pacing=buildPacingData(statsSource);
+  const managers=Object.values(ROSTER_MAP);
+  const W=780, H=200, PAD={t:16,r:16,b:28,l:36};
+  const chartW=W-PAD.l-PAD.r, chartH=H-PAD.t-PAD.b;
+  const weeks=19; // 0-18
+  const xScale=w=>PAD.l+w/18*chartW;
+  const yScale=v=>PAD.t+chartH-(v/BUDGET)*chartH;
+
+  // Color palette for managers
+  const COLORS=['#c8f135','#60a5fa','#f87171','#fbbf24','#34d399','#a78bfa',
+                '#fb923c','#38bdf8','#e879f9','#4ade80','#f472b6','#facc15'];
+  const managerColors={};
+  managers.forEach((m,i)=>{managerColors[m]=COLORS[i%COLORS.length];});
+  // Override key ones
+  managerColors[YOU]='#60a5fa';
+  managerColors[WINNER]='#c8f135';
+
+  let hiddenManagers=new Set();
+
+  const svgLines=managers.map(name=>{
+    const pts=pacing[name];
+    const d=pts.map(p=>`${xScale(p.week)},${yScale(p.remaining)}`).join(' ');
+    const isYou=name===YOU, isWinner=name===WINNER;
+    return`<polyline id="pace-line-${name}" data-mgr="${name}"
+      points="${d}"
+      fill="none"
+      stroke="${managerColors[name]}"
+      stroke-width="${isYou||isWinner?2.5:1.2}"
+      stroke-opacity="${isYou||isWinner?1:0.45}"
+      style="transition:stroke-opacity .2s,stroke-width .2s"
+    />`;
+  }).join('');
+
+  // Grid lines
+  const gridLines=[0,25,50,75,100].map(v=>`
+    <line x1="${PAD.l}" y1="${yScale(v)}" x2="${PAD.l+chartW}" y2="${yScale(v)}" stroke="rgba(255,255,255,0.05)" stroke-width="0.5"/>
+    <text x="${PAD.l-4}" y="${yScale(v)+3}" text-anchor="end" fill="rgba(255,255,255,0.25)" font-size="8">$${v}</text>
+  `).join('');
+
+  // X axis labels
+  const xLabels=[1,3,5,7,9,11,13,15,17].map(w=>`
+    <text x="${xScale(w)}" y="${PAD.t+chartH+14}" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="8">W${w}</text>
+  `).join('');
+
+  const el=document.getElementById(containerId);
+  if(!el)return;
+
+  el.innerHTML=`
+    <div class="pacing-wrap">
+      <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">${season} FAAB balance over the season — click a manager to highlight</div>
+      <div class="pacing-legend" id="pacing-legend-${season}">
+        ${managers.map(name=>`
+          <div class="pacing-legend-item" onclick="togglePacingLine('${name}','${season}')" id="pacing-leg-${season}-${name}">
+            <div class="pacing-legend-dot" style="background:${managerColors[name]}"></div>
+            <span>${name}${name===WINNER?' 🏆':name===YOU?' ◀':''}</span>
+          </div>`).join('')}
+      </div>
+      <svg class="pacing-svg" viewBox="0 0 ${W} ${H}" id="pacing-svg-${season}">
+        ${gridLines}${xLabels}${svgLines}
+      </svg>
+    </div>`;
+}
+
+function togglePacingLine(name, season){
+  const svg=document.getElementById('pacing-svg-'+season);
+  const leg=document.getElementById('pacing-leg-'+season+'-'+name);
+  const line=svg?.querySelector(`[data-mgr="${name}"]`);
+  if(!line)return;
+  const isHidden=line.getAttribute('stroke-opacity')==='0.05';
+  line.setAttribute('stroke-opacity', isHidden?
+    (name===YOU||name===WINNER?'1':'0.45'):'0.05');
+  line.setAttribute('stroke-width', isHidden?
+    (name===YOU||name===WINNER?'2.5':'1.2'):'0.5');
+  if(leg) leg.style.opacity=isHidden?'1':'0.35';
+}
+
+// ── MOST CONTESTED PLAYERS ────────────────────────────────────────────────────
+function buildContestedPlayers(weeklySource){
+  const playerContest={};
+  Object.entries(weeklySource).forEach(([weekStr,wd])=>{
+    const week=parseInt(weekStr);
+    (wd.players||[]).forEach(p=>{
+      if(p.bids.length<2)return;
+      const winner=p.bids.find(b=>b.status==='complete');
+      if(!winner)return;
+      const key=p.pid+'_'+p.name;
+      if(!playerContest[key]){
+        playerContest[key]={
+          name:p.name, pos:p.pos, pid:p.pid,
+          totalBids:0, appearances:0,
+          topBid:0, topBidMgr:'', winner:'', winnerBid:0,
+          allAuctions:[]
+        };
+      }
+      const pc=playerContest[key];
+      pc.appearances++;
+      pc.totalBids+=p.bids.length;
+      const maxBid=Math.max(...p.bids.map(b=>b.bid));
+      if(maxBid>pc.topBid){pc.topBid=maxBid;pc.topBidMgr=p.bids.find(b=>b.bid===maxBid)?.manager||'';}
+      pc.winner=winner.manager;
+      pc.winnerBid=winner.bid;
+      pc.allAuctions.push({week,bids:p.bids,winner:winner.manager,winnerBid:winner.bid});
+    });
+  });
+  return Object.values(playerContest).sort((a,b)=>b.totalBids-a.totalBids);
+}
+
+function renderContestedPlayers(containerId, weeklySource, season){
+  const players=buildContestedPlayers(weeklySource).slice(0,20);
+  const el=document.getElementById(containerId);
+  if(!el)return;
+
+  if(!players.length){el.innerHTML=`<div style="color:var(--muted);font-size:11px">No contested data.</div>`;return;}
+
+  el.innerHTML=`
+    <div class="contested-table">
+      <div class="ct-row ct-hdr">
+        <div>#</div><div>Pos</div><div>Player</div>
+        <div style="text-align:right">Bids</div>
+        <div style="text-align:right">Top bid</div>
+        <div>Bidders</div>
+      </div>
+      ${players.map((p,i)=>{
+        const bidders=[...new Set(p.allAuctions.flatMap(a=>a.bids.map(b=>b.manager)))];
+        const topBidColor=p.topBid>=20?'c-red':p.topBid>=10?'c-amber':'c-green';
+        return`<div class="ct-row">
+          <div style="color:var(--muted)">${i+1}</div>
+          <div class="bid-pos-cell" style="color:${posColor(p.pos)}">${p.pos}</div>
+          <div>
+            <div style="color:var(--text)">${p.name}</div>
+            <div style="font-size:9px;color:var(--muted);margin-top:1px">Won by ${p.winner}${p.winner===WINNER?' 🏆':p.winner===YOU?' ◀':''}</div>
+          </div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700">${p.totalBids}</div>
+          <div style="text-align:right;font-family:'Syne',sans-serif;font-weight:700" class="${topBidColor}">${fmt(p.topBid)}</div>
+          <div style="font-size:10px;color:var(--muted2)">${bidders.slice(0,4).join(', ')}${bidders.length>4?` +${bidders.length-4}`:''}</div>
+        </div>`;
+      }).join('')}
+    </div>`;
+}
+
 // ── Season parser (reusable for both years) ──────────────────────────────
 function parseSeasonData(weekResults, rosterMap, playerMap, faabLeft){
   const stats={};
@@ -1469,6 +1894,10 @@ async function main(){
     // Auto-select first active week
     const firstActive=Array.from({length:18},(_,i)=>i+1).find(w=>(weeklyData[w]?.players?.length||0)>0)||1;
     renderWeek(firstActive);
+
+    // Render pacing chart + contested players
+    renderPacingChart('pacing-2025', stats, 2025);
+    renderContestedPlayers('contested-2025', weeklyData, 2025);
 
     document.getElementById('loader').style.display='none';
     document.getElementById('views').style.display='block';
