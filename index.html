@@ -193,6 +193,26 @@ h1 em{color:var(--lime);font-style:normal}
 .yoy-bar-card:hover{border-color:var(--b2)}
 .view{display:none}.view.active{display:block}
 
+/* Position intelligence */
+.pos-intel-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:10px;margin-bottom:1rem}
+.pos-intel-card{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;overflow:hidden}
+.pos-intel-card.threat-high{border-color:rgba(248,113,113,.3)}
+.pos-intel-card.threat-mid{border-color:rgba(251,191,36,.25)}
+.pos-intel-card.threat-low{border-color:rgba(107,107,116,.2)}
+.pos-intel-header{display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;border-bottom:.5px solid var(--b1)}
+.pos-intel-pos{font-family:'Syne',sans-serif;font-size:14px;font-weight:700}
+.pos-threat-badge{font-size:9px;padding:2px 8px;border-radius:3px;text-transform:uppercase;letter-spacing:.06em}
+.pos-intel-body{padding:.75rem 1rem}
+.pos-stat-row{display:flex;justify-content:space-between;align-items:baseline;padding:3px 0;border-bottom:.5px solid var(--b1);font-size:11px}
+.pos-stat-row:last-child{border-bottom:none}
+.pos-stat-lbl{color:var(--muted);font-size:10px}
+.pos-stat-val{font-family:'Syne',sans-serif;font-weight:700;font-size:12px}
+.pos-insight{font-size:11px;color:var(--muted2);line-height:1.6;margin-top:8px;padding-top:8px;border-top:.5px solid var(--b1)}
+.pos-insight strong{color:var(--text);font-weight:500}
+.pos-outlier{font-size:10px;background:rgba(251,191,36,.08);border:.5px solid rgba(251,191,36,.2);border-radius:4px;padding:4px 8px;margin-top:6px;color:var(--amber);line-height:1.5}
+.pos-range-bar{height:4px;background:var(--s2);border-radius:2px;overflow:hidden;margin:4px 0;position:relative}
+.pos-range-fill{height:100%;border-radius:2px;position:absolute;top:0}
+
 /* Rivalry matrix */
 .rivalry-matrix{overflow-x:auto;margin-bottom:1.5rem}
 .rm-table{border-collapse:collapse;min-width:100%}
@@ -1053,6 +1073,23 @@ function setBidSort(uid, mode){
   }
 }
 
+function switchPosIntelSeason(name, season){
+  const uid=name.replace(/[^a-z0-9]/gi,'');
+  const el=document.getElementById('posintel-'+uid);
+  if(el) el.innerHTML=renderPositionIntelligence(name, season);
+  ['2024','2025'].forEach(y=>{
+    const btn=document.getElementById('posintel-btn-'+y+'-'+uid);
+    if(!btn)return;
+    if(parseInt(y)===season){
+      btn.style.background='var(--lime)';btn.style.color='#0d0d0f';
+      btn.style.borderColor='var(--lime)';btn.style.fontWeight='500';
+    } else {
+      btn.style.background='transparent';btn.style.color='var(--muted2)';
+      btn.style.borderColor='var(--b2)';btn.style.fontWeight='400';
+    }
+  });
+}
+
 function showManagerDetail(name){
   const s=APP.stats[name];
   const arch=archetype(s);
@@ -1083,18 +1120,14 @@ function showManagerDetail(name){
       <div class="dmet"><div class="dmet-v ${s.maxBid>=25?'c-red':s.maxBid>=12?'c-amber':s.maxBid>0?'c-green':'c-muted'}">${s.maxBid>0?fmt(s.maxBid):'-'}</div><div class="dmet-l">Largest bid</div></div>
       <div class="dmet"><div class="dmet-v ${s.remainingFAAB!==null&&s.remainingFAAB>=50?'c-green':s.remainingFAAB!==null&&s.remainingFAAB<=15?'c-red':'c-muted'}">${s.remainingFAAB!==null?fmt(s.remainingFAAB):'—'}</div><div class="dmet-l">Remaining</div></div>
     </div>
-    <div style="margin-bottom:1rem">
-      <div class="sec" style="margin-top:0">Position spending</div>
-      <div class="pos-spend-box">
-        ${Object.entries(s.posSpend).sort((a,b)=>b[1]-a[1]).map(([pos,amt])=>`
-          <div class="pos-bar-row">
-            <span class="pos-bar-label" style="color:${posColor(pos)}">${pos}</span>
-            <div class="pos-bar-track"><div class="pos-bar-fill" style="width:${Math.round(amt/maxPos*100)}%;background:${posColor(pos)}"></div></div>
-            <span class="pos-bar-val" style="color:${posColor(pos)}">${fmt(amt)}</span>
-          </div>`).join('')}
-        ${Object.keys(s.posSpend).length===0?`<div style="font-size:11px;color:var(--muted)">No FAAB spent</div>`:''}
+    <div class="sec" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
+      <span>Position intelligence — 2025</span>
+      <div style="display:flex;gap:4px">
+        <button id="posintel-btn-2025-${name.replace(/[^a-z0-9]/gi,'')}" onclick="switchPosIntelSeason('${name}',2025)" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--lime);background:var(--lime);color:#0d0d0f;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500">2025</button>
+        <button id="posintel-btn-2024-${name.replace(/[^a-z0-9]/gi,'')}" onclick="switchPosIntelSeason('${name}',2024)" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">2024</button>
       </div>
     </div>
+    <div id="posintel-${name.replace(/[^a-z0-9]/gi,'')}">${renderPositionIntelligence(name, 2025)}</div>
     <div class="sec">2025 failed bids — what you lost and who beat you</div>
     ${renderFailedBidsSection(name, 2025)}
     <div class="sec">2024 failed bids — what you lost and who beat you</div>
@@ -1407,6 +1440,175 @@ function showRivalryDrill(rowMgr, colMgr){
   document.getElementById('rivalry-drill').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
+
+
+// ── POSITION INTELLIGENCE ─────────────────────────────────────────────────────
+function buildPositionIntel(name, season){
+  const s = season===2024 ? APP.stats2024[name] : APP.stats[name];
+  const s_other = season===2024 ? APP.stats[name] : APP.stats2024[name];
+  if(!s) return {};
+
+  const positions = ['RB','WR','QB','TE','DEF','K'];
+  const result = {};
+
+  positions.forEach(pos => {
+    // All winning bids at this position
+    const wonBids = s.bids.filter(b => b.pos === pos);
+    // All attempted bids (won + failed) at this position
+    const failedBids = (s.failedBids||[]).filter(b => b.pos === pos);
+    const allBids = [
+      ...wonBids.map(b=>({...b, won:true})),
+      ...failedBids.map(b=>({...b, won:false}))
+    ].sort((a,b)=>a.week-b.week);
+
+    if(!allBids.length){ result[pos]={pos,empty:true}; return; }
+
+    const amounts = allBids.map(b=>b.bid).sort((a,b)=>a-b);
+    const wonAmounts = wonBids.map(b=>b.bid).sort((a,b)=>a-b);
+
+    // Statistical measures
+    const median = amounts[Math.floor(amounts.length/2)];
+    const mean = Math.round(amounts.reduce((s,v)=>s+v,0)/amounts.length);
+    const max = Math.max(...amounts);
+    const maxWon = wonAmounts.length ? Math.max(...wonAmounts) : 0;
+    const p75 = amounts[Math.floor(amounts.length*0.75)] || max;
+    const totalSpent = wonBids.reduce((s,b)=>s+b.bid,0);
+
+    // Outlier detection: bids > 2x median AND > median + 8 (avoid flagging $2 vs $1)
+    const outlierThreshold = Math.max(median*2, median+8, 10);
+    const outliers = allBids.filter(b => b.bid >= outlierThreshold && b.bid > 5);
+    const normalBids = allBids.filter(b => !outliers.find(o=>o===b));
+    const normalAmounts = normalBids.map(b=>b.bid);
+    const typicalMax = normalAmounts.length ? Math.max(...normalAmounts) : max;
+    const typicalMedian = normalAmounts.length ?
+      normalAmounts.sort((a,b)=>a-b)[Math.floor(normalAmounts.length/2)] : median;
+
+    // YoY comparison
+    const otherBids = s_other ? (s_other.bids||[]).filter(b=>b.pos===pos) : [];
+    const otherSpent = otherBids.reduce((s,b)=>s+b.bid,0);
+    const otherMax = otherBids.length ? Math.max(...otherBids.map(b=>b.bid)) : 0;
+
+    // Threat level
+    let threat, threatColor, threatBg;
+    if(totalSpent>=20 || maxWon>=15){
+      threat='High threat'; threatColor='var(--red)'; threatBg='threat-high';
+    } else if(totalSpent>=8 || maxWon>=6){
+      threat='Moderate'; threatColor='var(--amber)'; threatBg='threat-mid';
+    } else {
+      threat='Low threat'; threatColor='var(--muted2)'; threatBg='threat-low';
+    }
+
+    // Insight text
+    const insights = [];
+
+    // Ceiling insight
+    if(outliers.length > 0){
+      insights.push(`Typical ceiling is <strong>${fmt(typicalMax)}</strong> — outlier spike${outliers.length>1?'s':''} of <strong>${fmt(max)}</strong> in Wk ${outliers[0].week} likely situational.`);
+    } else {
+      insights.push(`Hard ceiling appears to be <strong>${fmt(max)}</strong> — no outliers detected. Reliable upper bound for 2026 planning.`);
+    }
+
+    // Range insight
+    if(typicalMedian === 0 && allBids.length > 0){
+      insights.push(`Relies heavily on <strong>$0 priority bids</strong> at ${pos} — rarely commits real FAAB here.`);
+    } else if(typicalMax - typicalMedian <= 2 && allBids.length >= 3){
+      insights.push(`Very consistent bidder at ${pos} — bids cluster tightly around <strong>${fmt(typicalMedian)}</strong>.`);
+    } else {
+      insights.push(`Typical range <strong>${fmt(typicalMedian)}–${fmt(typicalMax)}</strong> (excluding outliers).`);
+    }
+
+    // YoY shift
+    if(s_other && (totalSpent > 0 || otherSpent > 0)){
+      const delta = totalSpent - otherSpent;
+      const maxDelta = maxWon - otherMax;
+      if(Math.abs(delta) >= 5){
+        insights.push(`${season===2025?'2025':'2024'} spend ${delta>0?'up':'down'} <strong>${fmt(Math.abs(delta))}</strong> vs prior season${Math.abs(maxDelta)>=5?`, ceiling ${maxDelta>0?'rose':'dropped'} by ${fmt(Math.abs(maxDelta))}`:''}. ${delta>0?'Getting more aggressive here.':'Pulling back at this position.'}`);
+      }
+    }
+
+    // Activity level
+    if(wonBids.length === 0 && failedBids.length > 0){
+      insights.push(`Bid on ${pos} <strong>${failedBids.length}x</strong> but never won one — consistently outbid at this position.`);
+    } else if(wonBids.length > 0 && failedBids.length === 0){
+      insights.push(`Won every ${pos} bid placed — either targets low-competition players or has perfect timing.`);
+    }
+
+    result[pos] = {
+      pos, empty:false, threat, threatColor, threatBg,
+      allBids, wonBids, failedBids, outliers,
+      median, mean, max, maxWon, p75, totalSpent, typicalMax, typicalMedian,
+      otherSpent, otherMax, insights
+    };
+  });
+
+  return result;
+}
+
+function renderPositionIntelligence(name, season){
+  const intel = buildPositionIntel(name, season);
+  const positions = ['RB','WR','QB','TE','DEF','K'];
+  const active = positions.filter(p => intel[p] && !intel[p].empty);
+  const inactive = positions.filter(p => !intel[p] || intel[p].empty);
+
+  if(!active.length) return `<div style="font-size:11px;color:var(--muted)">No bid data for ${season}.</div>`;
+
+  return `
+    <div class="pos-intel-grid">
+      ${active.map(pos => {
+        const d = intel[pos];
+        const pc = posColor(pos);
+        const maxForBar = Math.max(d.typicalMax, 1);
+
+        return `<div class="pos-intel-card ${d.threatBg}">
+          <div class="pos-intel-header">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="pos-intel-pos" style="color:${pc}">${pos}</span>
+              <span style="font-size:10px;color:var(--muted2)">${d.wonBids.length} win${d.wonBids.length!==1?'s':''} · ${fmt(d.totalSpent)} spent</span>
+            </div>
+            <span class="pos-threat-badge" style="background:${d.threatBg==='threat-high'?'rgba(248,113,113,.1)':d.threatBg==='threat-mid'?'rgba(251,191,36,.08)':'var(--s2)'};color:${d.threatColor}">${d.threat}</span>
+          </div>
+          <div class="pos-intel-body">
+            <div class="pos-stat-row">
+              <span class="pos-stat-lbl">Typical median bid</span>
+              <span class="pos-stat-val" style="color:${pc}">${fmt(d.typicalMedian)}</span>
+            </div>
+            <div class="pos-stat-row">
+              <span class="pos-stat-lbl">Typical ceiling (excl. outliers)</span>
+              <span class="pos-stat-val" style="color:${d.typicalMax>=15?'var(--amber)':'var(--text)'}">${fmt(d.typicalMax)}</span>
+            </div>
+            <div class="pos-stat-row">
+              <span class="pos-stat-lbl">All-time max (any bid)</span>
+              <span class="pos-stat-val" style="color:${d.max>=20?'var(--red)':d.max>=10?'var(--amber)':'var(--muted2)'}">${fmt(d.max)}</span>
+            </div>
+            <div class="pos-stat-row">
+              <span class="pos-stat-lbl">Total bids placed</span>
+              <span class="pos-stat-val">${d.allBids.length} (${d.wonBids.length}W / ${d.failedBids.length}L)</span>
+            </div>
+            ${d.typicalMax > 0 ? `
+            <div style="margin-top:6px">
+              <div style="font-size:9px;color:var(--muted);margin-bottom:3px">Typical bid range</div>
+              <div class="pos-range-bar">
+                <div class="pos-range-fill" style="left:${Math.round(d.typicalMedian/BUDGET*100)}%;width:${Math.round((d.typicalMax-d.typicalMedian)/BUDGET*100)}%;background:${pc};opacity:.6"></div>
+                <div class="pos-range-fill" style="left:0;width:${Math.round(d.typicalMedian/BUDGET*100)}%;background:${pc};opacity:.2"></div>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--muted)">
+                <span>$0</span><span>median ${fmt(d.typicalMedian)}</span><span>ceiling ${fmt(d.typicalMax)}</span><span>$100</span>
+              </div>
+            </div>` : ''}
+            <div class="pos-insight">${d.insights.join(' ')}</div>
+            ${d.outliers.length > 0 ? `
+            <div class="pos-outlier">
+              ⚠ Outlier bid${d.outliers.length>1?'s':''}: ${d.outliers.map(o=>`<strong>${fmt(o.bid)}</strong> on ${o.player} (Wk ${o.week}${!o.won?' — lost':' — won'})`).join(', ')} — excluded from typical range above.
+            </div>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+    ${inactive.length > 0 ? `
+    <div style="font-size:10px;color:var(--muted);margin-top:4px">
+      No bids at: ${inactive.join(', ')} in ${season}.
+    </div>` : ''}`;
+}
 
 // ── BUDGET PACING CHART ───────────────────────────────────────────────────────
 function buildPacingData(statsSource){
