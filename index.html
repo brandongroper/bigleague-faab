@@ -193,6 +193,35 @@ h1 em{color:var(--lime);font-style:normal}
 .yoy-bar-card{background:var(--s1);border:.5px solid var(--b1);border-radius:12px;padding:1.1rem 1.25rem;cursor:pointer;transition:border-color .15s}
 .yoy-bar-card:hover{border-color:var(--b2)}
 .view{display:none}.view.active{display:block}
+.mgr-edge-chip{font-size:9px;color:var(--muted2);line-height:1.5;margin-top:8px;padding-top:8px;border-top:.5px dashed var(--b1);display:flex;gap:6px;align-items:flex-start}
+
+/* Jump nav + collapsible year sections */
+.jump-nav{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:1.25rem}
+.jump-btn{font-size:9px;padding:4px 10px;border-radius:5px;border:.5px solid var(--b1);background:var(--s1);color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s}
+.jump-btn:hover{color:var(--text);border-color:var(--b2)}
+.yr-collapse{margin-bottom:1rem}
+.yr-collapse summary{font-size:10px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted);cursor:pointer;padding:10px 0 6px;border-bottom:.5px solid var(--b1);margin-bottom:12px;list-style:none;user-select:none}
+.yr-collapse summary::-webkit-details-marker{display:none}
+.yr-collapse summary:before{content:'▸ ';color:var(--lime)}
+.yr-collapse[open] summary:before{content:'▾ '}
+.yr-hint{font-size:8px;color:var(--muted);letter-spacing:.06em;margin-left:6px;opacity:.7}
+.yr-collapse[open] .yr-hint{display:none}
+
+/* Mobile pass */
+@media(max-width:640px){
+  .page{padding:1.25rem .85rem 4rem}
+  .detail-metrics{grid-template-columns:repeat(2,1fr)}
+  .sum-grid{grid-template-columns:repeat(2,1fr)}
+  .failed-enriched-table,.yoy-table,.bid-table{overflow-x:auto}
+  .fe-row,.yoy-row{min-width:560px}
+  .bid-table-row{min-width:460px}
+  .bc-comp-row{min-width:380px}
+  .bc-result{overflow-x:auto}
+  .bs-phase-grid{grid-template-columns:repeat(2,1fr)}
+  .wk-bars{gap:2px}
+  .wk-amt{display:none}
+  .mn-grid{grid-template-columns:1fr}
+}
 
 /* Intel Brief */
 .intel-brief{background:linear-gradient(135deg,rgba(200,241,53,0.06),var(--s1));border:.5px solid rgba(200,241,53,0.25);border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem}
@@ -389,6 +418,9 @@ h1 em{color:var(--lime);font-style:normal}
 
     <!-- WEEKLY -->
     <div class="view" id="view-weekly">
+      <div class="sec">player search — every auction, both seasons</div>
+      <input class="bc-input" id="ps-input" oninput="runPlayerSearch()" placeholder="Search any player across all 2024–2025 auctions..." style="width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px 12px;font-size:12px">
+      <div id="ps-results" style="margin-bottom:1.25rem"></div>
       <div class="sec">weekly waiver results — full auction view</div>
       <div class="week-nav" id="week-nav"></div>
       <div id="week-filters" style="display:none">
@@ -416,8 +448,15 @@ h1 em{color:var(--lime);font-style:normal}
 
     <!-- HISTORY -->
     <div class="view" id="view-history">
-      <div class="sec">2024 vs 2025 — year over year</div>
+      <div class="sec" id="jmp-yoy">2024 vs 2025 — year over year</div>
       <div id="history-content"><div style="color:var(--muted);font-size:12px;padding:2rem 0;text-align:center">Loading historical data...</div></div>
+    </div>
+
+    <div style="margin-top:3rem;padding-top:1rem;border-top:.5px solid var(--b1);font-size:10px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+      <span>Data: 2024–2025 seasons · Sleeper API</span>
+      <span>Player names cached locally, refreshed weekly</span>
+      <span onclick="clearPlayerCache()" style="color:var(--muted2);cursor:pointer;text-decoration:underline;text-underline-offset:2px">Force refresh cache</span>
+      <span style="margin-left:auto">Built for KGB</span>
     </div>
   </div>
 </div>
@@ -655,11 +694,14 @@ function renderTendencies(name,s){
       </div>`).join('')}`;
 }
 
+const VALID_TABS=['overview','managers','weekly','rivals','history','warroom'];
+
 function showView(v){
+  if(!VALID_TABS.includes(v)) v='overview';
   document.querySelectorAll('.view').forEach(el=>el.classList.remove('active'));
   document.getElementById('view-'+v).classList.add('active');
   document.querySelectorAll('.nav-tab').forEach((t,i)=>{
-    t.classList.toggle('active',['overview','managers','weekly','rivals','history','warroom'][i]===v);
+    t.classList.toggle('active',VALID_TABS[i]===v);
   });
   if(v==='managers'){
     document.getElementById('mgr-grid-view').style.display='block';
@@ -667,7 +709,18 @@ function showView(v){
   }
   if(v==='history') renderHistory();
   if(v==='rivals') renderRivals();
-  if(v==='warroom'){ renderWarRoom(); fetchTrending(); fetchNews(); }
+  if(v==='warroom'){ renderWarRoom(); fetchTrending(); }
+  try{history.replaceState(null,'','#tab='+v);}catch(e){}
+}
+
+// Deep links: #tab=warroom or #manager=Shiv7 — shareable views
+function routeFromHash(){
+  try{
+    const h=new URLSearchParams(location.hash.slice(1));
+    const mgr=h.get('manager'), tab=h.get('tab');
+    if(mgr&&APP.stats[mgr]){ goToManager(mgr); return; }
+    if(tab&&VALID_TABS.includes(tab)) showView(tab);
+  }catch(e){}
 }
 
 function setFilter(f,btn){
@@ -1185,6 +1238,10 @@ function switchPosIntelSeason(name, season){
 
 function showManagerDetail(name){
   const s=APP.stats[name];
+  if(!s)return;
+  document.getElementById('mgr-grid-view').style.display='none';
+  document.getElementById('mgr-detail-view').style.display='block';
+  try{history.replaceState(null,'','#manager='+encodeURIComponent(name));}catch(e){}
   const arch=archetype(s);
   const topBids=[...s.bids].sort((a,b)=>b.bid-a.bid);
   const pct=Math.min(Math.round(s.totalSpent/BUDGET*100),100);
@@ -1217,7 +1274,10 @@ function showManagerDetail(name){
       <div class="intel-brief-label">⚡ Intel Brief — two-season synthesis</div>
       <div class="intel-brief-body">${generateIntelBrief(name)}</div>
     </div>
-    <div class="sec" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
+    <div class="jump-nav">
+      ${[['jmp-posintel','Position intel'],['jmp-failed','Failed bids'],['jmp-yoy','Year over year'],['jmp-bids','Winning bids'],['jmp-overbid','Overbid analysis'],['jmp-tend','Tendencies']].map(([id,lbl])=>`<button class="jump-btn" onclick="document.getElementById('${id}')?.scrollIntoView({behavior:'smooth',block:'start'})">${lbl}</button>`).join('')}
+    </div>
+    <div class="sec" id="jmp-posintel" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
       <span>Position intelligence</span>
       <div style="display:flex;gap:4px">
         <button id="posintel-btn-2025-${name.replace(/[^a-z0-9]/gi,'')}" onclick="switchPosIntelSeason('${name}',2025)" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--lime);background:var(--lime);color:#0d0d0f;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500">2025</button>
@@ -1226,10 +1286,12 @@ function showManagerDetail(name){
       </div>
     </div>
     <div id="posintel-${name.replace(/[^a-z0-9]/gi,'')}">${renderPositionIntelligence(name, 2025)}</div>
-    <div class="sec">2025 failed bids — what you lost and who beat you</div>
+    <div class="sec" id="jmp-failed">2025 failed bids — what you lost and who beat you</div>
     ${renderFailedBidsSection(name, 2025)}
-    <div class="sec">2024 failed bids — what you lost and who beat you</div>
-    ${renderFailedBidsSection(name, 2024)}
+    <details class="yr-collapse">
+      <summary>2024 failed bids — what you lost and who beat you <span class="yr-hint">click to expand</span></summary>
+      ${renderFailedBidsSection(name, 2024)}
+    </details>
     <div class="sec">2024 vs 2025 — year over year</div>
     ${(()=>{
       const s24=APP.stats2024[name]||{totalSpent:0,bidCount:0,avgBid:0,remainingFAAB:null,posSpend:{}};
@@ -1291,18 +1353,20 @@ function showManagerDetail(name){
         </div>`:''}
       </div>`;
     })()}
-    ${renderBidsSection(name, s, 2025)}
+    <div id="jmp-bids">${renderBidsSection(name, s, 2025)}</div>
     ${(()=>{
       const s24=APP.stats2024[name];
       if(!s24) return '';
       return renderBidsSection(name, s24, 2024);
     })()}
 
-    <div class="sec">2025 overbid analysis</div>
+    <div class="sec" id="jmp-overbid">2025 overbid analysis</div>
     <div class="overbid-wrap">${renderOverbidSection(name, 2025)}</div>
-    <div class="sec">2024 overbid analysis</div>
-    <div class="overbid-wrap">${renderOverbidSection(name, 2024)}</div>
-    <div class="sec">Tendencies & scouting report</div>
+    <details class="yr-collapse">
+      <summary>2024 overbid analysis <span class="yr-hint">click to expand</span></summary>
+      <div class="overbid-wrap">${renderOverbidSection(name, 2024)}</div>
+    </details>
+    <div class="sec" id="jmp-tend">Tendencies & scouting report</div>
     <div class="tendency-box">${renderTendencies(name,s)}</div>`;
 
   document.getElementById('mgr-grid-view').style.display='none';
@@ -1313,6 +1377,7 @@ function showManagerDetail(name){
 function closeManagerDetail(){
   document.getElementById('mgr-grid-view').style.display='block';
   document.getElementById('mgr-detail-view').style.display='none';
+  try{history.replaceState(null,'','#tab=managers');}catch(e){}
 }
 
 function goToManager(name){
@@ -1439,7 +1504,21 @@ function calcBidRecommendation(pos, competitors){
     // 5. Desperation signal — panic bidders may blow past everything after a loss
     const panic=computePanicIndex(name);
     if(panic.isPanicBidder){
-      notes.push(`Panic bidder — ${panic.multiplier}x bigger bids after a loss`);
+      notes.push(`Panic bidder — median ${fmt(panic.medAfterLoss)} after a loss vs ${fmt(panic.medAfterWin)} after a win`);
+    }
+
+    // 6. Empirical beat price at this position (falls back to all-position if thin)
+    let bp=computeBeatPrice(name,pos);
+    if(bp.price===null) bp=computeBeatPrice(name);
+
+    // 7. Position habit: usual bid + pattern-break count at this position
+    let habit=null;
+    const habitAtt=(intelAll.allBids||[]).filter(a=>a.bid>0);
+    if(habitAtt.length>=3){
+      const hSorted=habitAtt.map(a=>a.bid).sort((a,b)=>a-b);
+      const hUsual=hSorted[Math.floor(hSorted.length/2)];
+      const hBreakT=Math.max(hUsual*2,hUsual+5);
+      habit={usual:hUsual,breakT:hBreakT,breaks:habitAtt.filter(a=>a.bid>=hBreakT).length,n:habitAtt.length};
     }
 
     // Risk level based on effective ceiling
@@ -1452,6 +1531,7 @@ function calcBidRecommendation(pos, competitors){
 
     results.push({name,typical,ceiling,allTimeMax,effectiveCeiling,
       risk,hasData:true,trend,totalBids,arch,notes,
+      beatPrice:bp.price,beatN:bp.n,habit,
       posWinRate,posContested:posContested.length});
   });
 
@@ -1482,6 +1562,10 @@ function calcBidRecommendation(pos, competitors){
     const maxEffective=Math.max(...active.map(r=>r.effectiveCeiling),0);
     recommended=maxEffective>0?maxEffective+1:1;
 
+    // Value bid: clears 90% of every selected competitor's bid history
+    const beatPrices=active.map(r=>r.beatPrice).filter(v=>v!==null&&v!==undefined);
+    var valueBid=beatPrices.length?Math.max(...beatPrices):null;
+
     // Safe floor = above highest typical bid
     const maxTypical=Math.max(...active.map(r=>r.typical),0);
     safeFloor=maxTypical>0?maxTypical+1:1;
@@ -1501,7 +1585,8 @@ function calcBidRecommendation(pos, competitors){
   }
 
   const hasSpike=results.some(r=>r.risk==='Spike risk');
-  return{results, recommended, safeFloor, hasSpike, reasoning};
+  return{results, recommended, safeFloor, hasSpike, reasoning,
+    valueBid:typeof valueBid!=='undefined'?valueBid:null};
 }
 
 function calcPhaseSpend(statsObj){
@@ -1632,7 +1717,11 @@ function renderWarRoom(){
               </select>
             </div>
             <div>
-              <div class="bc-label" style="margin-bottom:6px;width:auto">Who do you expect to bid?</div>
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+                <span class="bc-label" style="width:auto;margin:0">Who do you expect to bid?</span>
+                <button onclick="bcSelectAll()" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">All</button>
+                <button onclick="bcClearAll()" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">Clear</button>
+              </div>
               <div class="bc-mgr-grid" id="bc-mgr-grid">
                 ${managers.map(m=>`
                   <div class="bc-mgr-check" id="bccheck-${m}" onclick="toggleBcMgr('${m}')">
@@ -1722,7 +1811,11 @@ function renderWarRoom(){
         <span class="wr-panel-icon">📝</span>
         <div>
           <div class="wr-panel-title">Manager Scouting Notes</div>
-          <div class="wr-panel-sub">Notes auto-save in your browser · private to you</div>
+          <div class="wr-panel-sub">Auto-saved in this browser · use Copy/Import to sync with your co-manager</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:5px">
+          <button id="notes-export-btn" onclick="exportNotes()" style="font-size:9px;padding:3px 10px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;white-space:nowrap">Copy notes</button>
+          <button onclick="importNotes()" style="font-size:9px;padding:3px 10px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">Import</button>
         </div>
       </div>
       <div class="wr-panel-body">
@@ -1747,6 +1840,18 @@ function renderWarRoom(){
         </div>
       </div>
     </div>
+
+    <details class="yr-collapse" style="margin-bottom:1.5rem">
+      <summary>How the numbers work <span class="yr-hint">click to expand</span></summary>
+      <div style="font-size:11px;color:var(--muted2);line-height:1.8;background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.25rem">
+        <strong style="color:var(--text)">Beat price</strong> — the bid that clears 90% of everything a manager has bid (won + failed attempts, both seasons), plus $1. Empirical, not a guess.<br>
+        <strong style="color:var(--text)">Usual bid / habit break</strong> — "usually" is their median bid at a position. A pattern break is a bid at 2x their usual or +$5, whichever is higher — so the break count is meaningful, not definitional.<br>
+        <strong style="color:var(--text)">Floor / Value / Lock</strong> — Floor beats their typical bid. Value clears 90% of their bid history. Lock beats their ceiling after adjusting for bidding style, trend, panic and spike history.<br>
+        <strong style="color:var(--text)">Desperation signal</strong> — median bid the week after a loss vs after a win, from real matchup results. Flagged only with 4+ samples on each side, a $4+ jump, and a 1.5x ratio.<br>
+        <strong style="color:var(--text)">Contested record</strong> — auctions entered vs won (not share of wins that happened to be contested).<br>
+        <strong style="color:var(--text)">Sample sizes</strong> — every stat shows its n. Edges under n=5 are dimmed: directional, not proven. All data: 2024–2025 Sleeper transactions and matchups.
+      </div>
+    </details>
   `;
 
   // Init budget strategy — defer to ensure DOM is ready after innerHTML set
@@ -1816,18 +1921,23 @@ function updateBidCalc(){
         <div>
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Recommended bid</div>
           <div class="bc-rec-bid">${fmt(recommended)}</div>
-          <div class="bc-rec-sub">${budgetPct}% of budget · safe floor ${fmt(safeFloor)}</div>
-          ${calc.reasoning?`<div style="font-size:10px;color:var(--muted2);margin-top:5px;line-height:1.5">${calc.reasoning}</div>`:''}
+          <div class="bc-rec-sub">${budgetPct}% of budget</div>
+          <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+            <div style="background:var(--s1);border:.5px solid var(--b1);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Floor</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--muted2)">${fmt(safeFloor)}</span><div style="font-size:8px;color:var(--muted)">beats their typical bid</div></div>
+            ${calc.valueBid!==null?`<div style="background:var(--s1);border:.5px solid rgba(96,165,250,.3);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.06em">Value</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--blue)">${fmt(calc.valueBid)}</span><div style="font-size:8px;color:var(--muted)">clears 90% of their bid history</div></div>`:''}
+            <div style="background:var(--s1);border:.5px solid rgba(200,241,53,.3);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--lime);text-transform:uppercase;letter-spacing:.06em">Lock</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--lime)">${fmt(recommended)}</span><div style="font-size:8px;color:var(--muted)">beats adjusted ceiling</div></div>
+          </div>
+          ${calc.reasoning?`<div style="font-size:10px;color:var(--muted2);margin-top:6px;line-height:1.5">${calc.reasoning}</div>`:''}
         </div>
         ${hasSpike?`<div style="font-size:10px;background:rgba(251,191,36,.1);border:.5px solid rgba(251,191,36,.3);border-radius:6px;padding:4px 8px;color:var(--amber);max-width:160px;line-height:1.5">⚠ Spike risk detected — a competitor has bid well above their ceiling before</div>`:''}
       </div>
       <div class="bc-competitor-table">
         <div class="bc-comp-row bc-comp-hdr">
           <div>Manager · archetype · notes</div>
-          <div style="text-align:right">Typical</div>
-          <div style="text-align:right">Raw ceiling</div>
-          <div style="text-align:right">Adj. ceiling</div>
-          <div style="text-align:right">Risk</div>
+          <div style="text-align:right;cursor:help" title="Median of all their bids at this position (won + failed, two seasons)">Typical</div>
+          <div style="text-align:right;cursor:help" title="Highest typical bid, excluding outlier spikes">Raw ceiling</div>
+          <div style="text-align:right;cursor:help" title="Ceiling adjusted for bidding style, YoY trend, panic signal and spike history">Adj. ceiling</div>
+          <div style="text-align:right;cursor:help" title="How dangerous they are at this position given ceiling and bid volume">Risk</div>
         </div>
         ${!results.some(r=>r.hasData)?`<div style="font-size:11px;color:var(--muted);padding:8px 0">No historical bid data at ${_bcState.pos} for selected managers.</div>`:''}
         ${results.map(r=>`
@@ -1835,6 +1945,8 @@ function updateBidCalc(){
             <div>
               <span style="color:${nameClass(r.name)||'var(--muted2)'}">${r.name}${r.name===WINNER?' 🏆':''}</span>
               ${r.arch?`<div style="font-size:9px;color:var(--muted)">${r.arch}${r.trend&&r.trend!=='—'?' · '+r.trend:''}</div>`:''}
+              ${r.habit?`<div style="font-size:9px;color:var(--muted2);margin-top:1px">Usually ${fmt(r.habit.usual)} at ${_bcState.pos} · gone ${fmt(r.habit.breakT)}+ ${r.habit.breaks}x (n=${r.habit.n})</div>`:''}
+              ${r.beatPrice?`<div style="font-size:9px;color:var(--blue);margin-top:1px">${fmt(r.beatPrice)} clears 90% of their bids (n=${r.beatN})</div>`:''}
               ${r.notes&&r.notes.length?`<div style="font-size:9px;color:var(--amber);margin-top:1px">${r.notes[0]}</div>`:''}
             </div>
             <div style="text-align:right;color:var(--muted2)">${r.hasData?fmt(r.typical):'—'}</div>
@@ -2079,6 +2191,81 @@ function renderTrending(){
     </div>`;
 }
 
+// ── USABILITY HELPERS ─────────────────────────────────────────────────────────
+function searchPlayerAuctions(q){
+  q=q.trim().toLowerCase();
+  const out=[];
+  [[2025,APP.weeklyData],[2024,APP.weeklyData2024]].forEach(([yr,wd])=>{
+    Object.entries(wd||{}).forEach(([wStr,d])=>{
+      (d.players||[]).forEach(p=>{
+        if(p.name.toLowerCase().includes(q)) out.push({season:yr,week:parseInt(wStr),p});
+      });
+    });
+  });
+  return out.sort((a,b)=>b.season-a.season||a.week-b.week);
+}
+
+function runPlayerSearch(){
+  const inp=document.getElementById('ps-input'), box=document.getElementById('ps-results');
+  if(!inp||!box)return;
+  const q=inp.value;
+  if(q.trim().length<2){box.innerHTML='';return;}
+  const res=searchPlayerAuctions(q).slice(0,25);
+  if(!res.length){box.innerHTML=`<div style="font-size:11px;color:var(--muted);padding:8px 0">No auctions found for "${q.replace(/[<>&]/g,'')}" in 2024–2025.</div>`;return;}
+  box.innerHTML=res.map(({season,week,p})=>{
+    const bids=[...p.bids].sort((a,b)=>b.bid-a.bid);
+    return`<div style="background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:.75rem 1rem;margin-bottom:6px">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
+        <span class="bid-pos-cell" style="color:${posColor(p.pos)}">${p.pos}</span>
+        <span style="font-weight:500;color:var(--text)">${p.name}</span>
+        <span style="font-size:10px;color:var(--muted)">${season} · Wk ${week} · ${p.bids.length} bid${p.bids.length!==1?'s':''}</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px">
+        ${bids.map(b=>`<span style="font-size:10px;padding:3px 9px;border-radius:4px;background:${b.status==='complete'?'rgba(200,241,53,.1)':'var(--s2)'};border:.5px solid ${b.status==='complete'?'rgba(200,241,53,.35)':'var(--b1)'};color:${b.status==='complete'?'var(--lime)':'var(--muted2)'}">${b.manager} ${fmt(b.bid)}${b.status==='complete'?' ✓':''}</span>`).join('')}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function bcSelectAll(){
+  Object.values(ROSTER_MAP).filter(m=>m!==YOU).forEach(m=>_bcState.competitors.add(m));
+  document.querySelectorAll('.bc-mgr-check').forEach(el=>el.classList.add('selected'));
+  updateBidCalc();
+}
+function bcClearAll(){
+  _bcState.competitors.clear();
+  document.querySelectorAll('.bc-mgr-check').forEach(el=>el.classList.remove('selected'));
+  updateBidCalc();
+}
+
+function exportNotes(){
+  const data=JSON.stringify(getNotes());
+  const done=()=>{const b=document.getElementById('notes-export-btn');if(b){b.textContent='✓ Copied';setTimeout(()=>b.textContent='Copy notes',1500);}};
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(data).then(done).catch(()=>prompt('Copy this and send it to your co-manager:',data));
+  } else prompt('Copy this and send it to your co-manager:',data);
+}
+function importNotes(){
+  const raw=prompt('Paste the notes text your co-manager copied:');
+  if(!raw)return;
+  try{
+    const incoming=JSON.parse(raw);
+    const cur=getNotes();
+    Object.entries(incoming).forEach(([k,v])=>{
+      if(!v)return;
+      if(!cur[k])cur[k]=v;
+      else if(cur[k]!==v&&!cur[k].includes(v))cur[k]=cur[k]+'\n— imported: '+v;
+    });
+    localStorage.setItem('wr_notes',JSON.stringify(cur));
+    renderWarRoom(); fetchTrending();
+  }catch(e){alert('Could not read that — make sure you pasted the exact text from "Copy notes".');}
+}
+
+function clearPlayerCache(){
+  try{localStorage.removeItem('faab_players_v2');}catch(e){}
+  location.reload();
+}
+
 // ── RIVALRY MATRIX ───────────────────────────────────────────────────────────
 function buildRivalryData(season){
   const weeklySource=season===2024?APP.weeklyData2024:APP.weeklyData;
@@ -2271,6 +2458,14 @@ function showRivalryDrill(rowMgr, colMgr){
         <span style="color:${nameClass(colMgr)||'var(--text)'}">${colMgr}</span>
         <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px">${season} · ${d.won}-${d.lost} record · ${d.totalBids} contested auctions</span>
       </div>
+      ${(()=>{
+        const losses=d.auctions.filter(a=>!a.youWon);
+        if(losses.length<2)return'';
+        const flipPrices=losses.map(a=>a.winnerBid+1).sort((x,y)=>x-y);
+        const medFlip=flipPrices[Math.floor(flipPrices.length/2)];
+        const bp=computeBeatPrice(colMgr);
+        return`<div style="font-size:11px;color:var(--muted2);background:var(--s2);border-radius:8px;padding:8px 12px;margin-bottom:10px;line-height:1.6">↳ ${rowMgr} lost ${losses.length} of these. <strong style="color:var(--lime)">${fmt(medFlip)}</strong> would have flipped half of them.${bp.price?` Across everything ${colMgr} has ever bid, <strong>${fmt(bp.price)}</strong> clears 90% (n=${bp.n}).`:''}</div>`;
+      })()}
       <div class="rd-row rd-hdr">
         <div>Wk</div><div>Pos</div><div>Player</div>
         <div style="text-align:right">${rowMgr.length>8?rowMgr.slice(0,7)+'…':rowMgr} bid</div>
@@ -2378,20 +2573,19 @@ function buildPositionIntel(name, season){
     // Insight text
     const insights = [];
 
-    // Ceiling insight
-    if(outliers.length > 0){
-      insights.push(`Typical ceiling is <strong>${fmt(typicalMax)}</strong> — outlier spike${outliers.length>1?'s':''} of <strong>${fmt(max)}</strong> in Wk ${outliers[0].week} likely situational.`);
-    } else {
-      insights.push(`Hard ceiling appears to be <strong>${fmt(max)}</strong> — no outliers detected. Reliable upper bound for 2026 planning.`);
-    }
-
-    // Range insight
-    if(typicalMedian === 0 && allBids.length > 0){
-      insights.push(`Relies heavily on <strong>$0 priority bids</strong> at ${pos} — rarely commits real FAAB here.`);
-    } else if(typicalMax - typicalMedian <= 2 && allBids.length >= 3){
-      insights.push(`Very consistent bidder at ${pos} — bids cluster tightly around <strong>${fmt(typicalMedian)}</strong>.`);
-    } else {
-      insights.push(`Typical range <strong>${fmt(typicalMedian)}–${fmt(typicalMax)}</strong> (excluding outliers).`);
+    // Habit line: usual bid + pattern breaks (break = 2x usual or +$5, whichever is higher)
+    const realAmounts=allBids.map(b=>b.bid).filter(b=>b>0).sort((a,b)=>a-b);
+    if(realAmounts.length>=2){
+      const usual=realAmounts[Math.floor(realAmounts.length/2)];
+      const breakT=Math.max(usual*2, usual+5);
+      const breakBids=allBids.filter(b=>b.bid>=breakT);
+      const biggest=breakBids.length?breakBids.reduce((a,b)=>b.bid>a.bid?b:a):null;
+      const seasonLbl=season==='all'?'across two seasons':'in '+season;
+      insights.push(breakBids.length===0
+        ? `Usually bids <strong>${fmt(usual)}</strong> here (n=${realAmounts.length}) and has <strong>never gone ${fmt(breakT)}+</strong> ${seasonLbl} — a hard habit you can price against.`
+        : `Usually bids <strong>${fmt(usual)}</strong> here (n=${realAmounts.length}). Gone ${fmt(breakT)}+ only <strong>${breakBids.length}x</strong> ${seasonLbl} — max ${fmt(biggest.bid)} on ${biggest.player} (Wk ${biggest.week}${biggest.won===false?', lost':''}).`);
+    } else if(typicalMedian===0&&allBids.length>0){
+      insights.push(`Relies on <strong>$0 priority bids</strong> at ${pos} — rarely commits real FAAB here.`);
     }
 
     // YoY shift — only show for single season views
@@ -2557,9 +2751,26 @@ function renderPacingChart(containerId, statsSource, season){
   const el=document.getElementById(containerId);
   if(!el)return;
 
+  // Takeaway: earliest broke + biggest hoarder
+  const takeaway=(()=>{
+    let earliestBroke=null, hoarder=null;
+    managers.forEach(name=>{
+      const s=statsSource[name]||{weekSpend:{}};
+      let rem=BUDGET, brokeWk=null;
+      for(let w=1;w<=18;w++){rem-=(s.weekSpend[w]||0);if(rem<10&&brokeWk===null)brokeWk=w;}
+      if(brokeWk!==null&&(!earliestBroke||brokeWk<earliestBroke.wk))earliestBroke={name,wk:brokeWk};
+      if(!hoarder||rem>hoarder.rem)hoarder={name,rem};
+    });
+    const bits=[];
+    if(earliestBroke)bits.push(`<strong>${earliestBroke.name}</strong> was under $10 by Wk ${earliestBroke.wk} — couldn't compete after that`);
+    if(hoarder&&hoarder.rem>=25)bits.push(`<strong>${hoarder.name}</strong> finished with ${fmt(hoarder.rem)} unspent — budget that never worked`);
+    return bits.length?`<div style="font-size:11px;color:var(--muted2);background:var(--s2);border-radius:8px;padding:8px 12px;margin-bottom:10px;line-height:1.6">↳ ${bits.join('. ')}.</div>`:'';
+  })();
+
   el.innerHTML=`
     <div class="pacing-wrap">
       <div style="font-size:11px;color:var(--muted2);margin-bottom:10px">${season} FAAB balance over the season — click a manager to highlight</div>
+      ${takeaway}
       <div class="pacing-legend" id="pacing-legend-${season}">
         ${managers.map(name=>`
           <div class="pacing-legend-item" onclick="togglePacingLine('${name}','${season}')" id="pacing-leg-${season}-${name}">
@@ -2624,7 +2835,17 @@ function renderContestedPlayers(containerId, weeklySource, season){
 
   if(!players.length){el.innerHTML=`<div style="color:var(--muted);font-size:11px">No contested data.</div>`;return;}
 
+  // Takeaway: which position dominates the contested market
+  const posCounts={};
+  players.forEach(p=>{posCounts[p.pos]=(posCounts[p.pos]||0)+1;});
+  const topPos=Object.entries(posCounts).sort((a,b)=>b[1]-a[1])[0];
+  const winnerCounts={};
+  players.forEach(p=>{if(p.winner)winnerCounts[p.winner]=(winnerCounts[p.winner]||0)+1;});
+  const topWinner=Object.entries(winnerCounts).sort((a,b)=>b[1]-a[1])[0];
+  const takeaway=topPos?`<div style="font-size:11px;color:var(--muted2);background:var(--s2);border-radius:8px;padding:8px 12px;margin-bottom:8px;line-height:1.6">↳ <strong style="color:${posColor(topPos[0])}">${topPos[0]}s</strong> drew ${topPos[1]} of the ${players.length} most contested auctions — that's where this league fights.${topWinner&&topWinner[1]>=3?` <strong>${topWinner[0]}</strong> won ${topWinner[1]} of them — the wire's biggest closer.`:''}</div>`:'';
+
   el.innerHTML=`
+    ${takeaway}
     <div class="contested-table">
       <div class="ct-row ct-hdr">
         <div>#</div><div>Pos</div><div>Player</div>
@@ -2697,35 +2918,84 @@ function getBidAttempts(name, season){
   return out;
 }
 
-// ── Panic index: bidding behavior after a loss vs after a win ────────────────
-function computePanicIndex(name){
-  const samples={afterLoss:[],afterWin:[]};
-  [[APP.results,2025],[APP.results2024,2024]].forEach(([res,yr])=>{
-    if(!res||!res[name])return;
-    const attempts=getBidAttempts(name,yr).filter(a=>a.bid>0);
-    attempts.forEach(a=>{
-      const prior=res[name][a.week-1];
-      if(prior==='L') samples.afterLoss.push(a.bid);
-      else if(prior==='W') samples.afterWin.push(a.bid);
+// ── Shared helpers ────────────────────────────────────────────────────────────
+function pctile(arr,p){
+  if(!arr.length)return 0;
+  const s=[...arr].sort((a,b)=>a-b);
+  return s[Math.max(0,Math.min(s.length-1,Math.ceil(p*s.length)-1))];
+}
+function median(arr){return pctile(arr,0.5);}
+
+// ── Contested record: auctions ENTERED vs WON (the real competitiveness stat) ─
+function computeContestedRecord(name, pos){
+  let entered=0, won=0; const lossMargins=[];
+  [APP.weeklyData,APP.weeklyData2024].forEach(wd=>{
+    Object.values(wd||{}).forEach(d=>{
+      (d.players||[]).forEach(p=>{
+        if(p.bids.length<2)return;
+        if(pos&&p.pos!==pos)return;
+        const mine=p.bids.find(b=>b.manager===name);
+        if(!mine)return;
+        const winner=p.bids.find(b=>b.status==='complete');
+        if(!winner)return;
+        entered++;
+        if(winner.manager===name)won++;
+        else lossMargins.push(winner.bid-mine.bid);
+      });
     });
   });
-  const avg=arr=>arr.length?arr.reduce((s,v)=>s+v,0)/arr.length:0;
-  const aL=avg(samples.afterLoss), aW=avg(samples.afterWin);
-  const totL=samples.afterLoss.reduce((s,v)=>s+v,0), totW=samples.afterWin.reduce((s,v)=>s+v,0);
-  return{
-    avgAfterLoss:Math.round(aL*10)/10, avgAfterWin:Math.round(aW*10)/10,
-    nAfterLoss:samples.afterLoss.length, nAfterWin:samples.afterWin.length,
-    totalAfterLoss:totL, totalAfterWin:totW,
-    multiplier:aW>0?Math.round(aL/aW*10)/10:(aL>0?Infinity:1),
-    isPanicBidder:aW>0&&aL/aW>=1.5&&samples.afterLoss.length>=3&&samples.afterWin.length>=3,
-    isIceCold:aW>0&&aL/aW<=0.67&&samples.afterLoss.length>=3&&samples.afterWin.length>=3
+  return{entered,won,rate:entered?Math.round(won/entered*100):null,
+    medLossMargin:lossMargins.length?median(lossMargins):null};
+}
+
+// ── Beat price: the bid that historically clears 90% of their attempts ───────
+function computeBeatPrice(name, pos){
+  const bids=getBidAttempts(name,'all').filter(a=>a.bid>0&&(!pos||a.pos===pos)).map(a=>a.bid);
+  if(bids.length<4)return{price:null,p90:null,n:bids.length};
+  const p90=pctile(bids,0.9);
+  return{price:p90+1,p90,n:bids.length};
+}
+
+// ── Timing fingerprint: share of total spend deployed by Week 6, per season ──
+function computeTimingFingerprint(name){
+  const share=(s)=>{
+    if(!s||!s.totalSpent)return null;
+    let early=0;
+    for(let w=1;w<=6;w++)early+=(s.weekSpend?.[w]||0);
+    return Math.round(early/s.totalSpent*100);
   };
+  const s25=share(APP.stats[name]), s24=share(APP.stats2024[name]);
+  return{s25,s24,
+    frontLoader:s25!==null&&s24!==null&&s25>=60&&s24>=60,
+    saver:s25!==null&&s24!==null&&s25<=30&&s24<=30};
+}
+
+// ── Panic index: MEDIAN bid after a loss vs after a win, hardened ────────────
+function computePanicIndex(name){
+  const afterLoss=[], afterWin=[];
+  [[APP.results,2025],[APP.results2024,2024]].forEach(([res,yr])=>{
+    if(!res||!res[name])return;
+    getBidAttempts(name,yr).filter(a=>a.bid>0).forEach(a=>{
+      const prior=res[name][a.week-1];
+      if(prior==='L')afterLoss.push(a.bid);
+      else if(prior==='W')afterWin.push(a.bid);
+    });
+  });
+  const mL=median(afterLoss), mW=median(afterWin);
+  const enoughData=afterLoss.length>=4&&afterWin.length>=4;
+  // Real signal requires: enough samples, a $4+ absolute jump, AND a 1.5x+ ratio
+  const isPanicBidder=enoughData&&(mL-mW)>=4&&(mW===0?mL>=5:mL/mW>=1.5);
+  const isIceCold=enoughData&&mW>0&&(mW-mL)>=3&&mL/mW<=0.6;
+  return{medAfterLoss:mL,medAfterWin:mW,
+    nAfterLoss:afterLoss.length,nAfterWin:afterWin.length,
+    multiplier:mW>0?Math.round(mL/mW*10)/10:null,
+    isPanicBidder,isIceCold};
 }
 
 // ── Market price index: avg winning bid by position by season phase ──────────
 function computeMarketPrice(){
   if(APP._marketPrice) return APP._marketPrice;
-  const buckets={}; // pos -> {early:[],mid:[],late:[],all:[]}
+  const buckets={};
   ['RB','WR','QB','TE','DEF','K'].forEach(p=>buckets[p]={early:[],mid:[],late:[],all:[]});
   [APP.weeklyData,APP.weeklyData2024].forEach(wd=>{
     Object.entries(wd||{}).forEach(([wStr,d])=>{
@@ -2739,10 +3009,7 @@ function computeMarketPrice(){
       });
     });
   });
-  const summarize=arr=>{
-    if(!arr.length)return{avg:0,max:0,n:0};
-    return{avg:Math.round(arr.reduce((s,v)=>s+v,0)/arr.length),max:Math.max(...arr),n:arr.length};
-  };
+  const summarize=arr=>arr.length?{avg:Math.round(arr.reduce((s,v)=>s+v,0)/arr.length),max:Math.max(...arr),n:arr.length}:{avg:0,max:0,n:0};
   const out={};
   Object.entries(buckets).forEach(([pos,b])=>{
     out[pos]={early:summarize(b.early),mid:summarize(b.mid),late:summarize(b.late),all:summarize(b.all)};
@@ -2751,30 +3018,52 @@ function computeMarketPrice(){
   return out;
 }
 
-// ── Numerology: round-number bias (multiples of 5 on bids ≥ $5) ─────────────
+// ── Numerology: round-number bias vs LEAGUE BASE RATE ────────────────────────
+function leagueRoundRate(){
+  if(APP._roundRate!==undefined)return APP._roundRate;
+  let round=0,total=0;
+  Object.values(ROSTER_MAP).forEach(n=>{
+    getBidAttempts(n,'all').map(a=>a.bid).filter(b=>b>=5).forEach(b=>{total++;if(b%5===0)round++;});
+  });
+  APP._roundRate=total>=20?Math.round(round/total*100):null;
+  return APP._roundRate;
+}
 function computeNumerology(name){
   const bids=getBidAttempts(name,'all').map(a=>a.bid).filter(b=>b>=5);
-  if(bids.length<4) return{pctRound:null,n:bids.length};
-  const round=bids.filter(b=>b%5===0).length;
-  return{pctRound:Math.round(round/bids.length*100),n:bids.length};
+  if(bids.length<8)return{pctRound:null,n:bids.length,vsLeague:null};
+  const pct=Math.round(bids.filter(b=>b%5===0).length/bids.length*100);
+  const base=leagueRoundRate();
+  return{pctRound:pct,n:bids.length,vsLeague:base!==null?pct-base:null,
+    isRoundBidder:pct>=70&&base!==null&&pct-base>=10};
 }
 
-// ── Predictability: coefficient of variation of real bids ───────────────────
-function computePredictability(name){
-  const bids=getBidAttempts(name,'all').map(a=>a.bid).filter(b=>b>0);
-  if(bids.length<5) return{cv:null,n:bids.length,label:'Insufficient data'};
-  const mean=bids.reduce((s,v)=>s+v,0)/bids.length;
-  const sd=Math.sqrt(bids.reduce((s,v)=>s+(v-mean)*(v-mean),0)/bids.length);
-  const cv=mean>0?sd/mean:0;
-  return{cv:Math.round(cv*100)/100,n:bids.length,
-    label:cv<=0.6?'Highly predictable':cv<=1.0?'Moderately predictable':'Erratic'};
-}
-
-// ── Late-season ceiling: max bid after week 10, both seasons ─────────────────
+// ── Late-season ceiling: only meaningful if they HAD money and didn't use it ─
 function computeLateSeasonCeiling(name){
   const late=getBidAttempts(name,'all').filter(a=>a.week>10&&a.bid>0);
-  if(!late.length) return{max:0,n:0};
-  return{max:Math.max(...late.map(a=>a.bid)),n:late.length};
+  const remEnteringWk11=(season)=>{
+    const s=season===2024?APP.stats2024[name]:APP.stats[name];
+    if(!s)return 0;
+    let r=BUDGET; for(let w=1;w<=10;w++)r-=(s.weekSpend?.[w]||0);
+    return r;
+  };
+  const hadMoney=Math.max(remEnteringWk11(2025),remEnteringWk11(2024));
+  return{max:late.length?Math.max(...late.map(a=>a.bid)):0,n:late.length,hadMoney};
+}
+
+// ── Position habits: usual bid per position + pattern-break count ────────────
+function computePositionHabits(name){
+  const out=[];
+  ['RB','WR','QB','TE','DEF','K'].forEach(pos=>{
+    const att=getBidAttempts(name,'all').filter(a=>a.pos===pos&&a.bid>0);
+    if(att.length<3)return;
+    const sorted=att.map(a=>a.bid).sort((a,b)=>a-b);
+    const usual=sorted[Math.floor(sorted.length/2)];
+    const breakT=Math.max(usual*2, usual+5);
+    const breaks=att.filter(a=>a.bid>=breakT);
+    const biggest=breaks.length?breaks.reduce((a,b)=>b.bid>a.bid?b:a):null;
+    out.push({pos,usual,n:att.length,breakT,breaks:breaks.length,biggest});
+  });
+  return out.sort((a,b)=>b.n-a.n);
 }
 
 // ── Broke-date: first week remaining budget dropped below $10 ────────────────
@@ -2794,142 +3083,189 @@ function generateIntelBrief(name){
   const s25=APP.stats[name]||{totalSpent:0,bidCount:0,maxBid:0};
   const s24=APP.stats2024[name]||{totalSpent:0};
   const ob=buildOverbidAnalysis(name);
+  const cr=computeContestedRecord(name);
+  const bp=computeBeatPrice(name);
   const panic=computePanicIndex(name);
-  const pred=computePredictability(name);
   const numer=computeNumerology(name);
   const lateCeil=computeLateSeasonCeiling(name);
+  const timing=computeTimingFingerprint(name);
   const broke25=computeBrokeWeek(name,2025), broke24=computeBrokeWeek(name,2024);
 
-  // Top positions by combined spend
   const posSpend={};
   [s25.posSpend||{},s24.posSpend||{}].forEach(ps=>Object.entries(ps).forEach(([p,v])=>{posSpend[p]=(posSpend[p]||0)+v;}));
   const topPos=Object.entries(posSpend).sort((a,b)=>b[1]-a[1]).slice(0,2);
 
   const parts=[];
 
-  // 1. Identity: style + spend pattern
+  // Identity + trajectory
   const spendDelta=s25.totalSpent-s24.totalSpent;
   const spendTrend=Math.abs(spendDelta)<8?'consistent year over year':spendDelta>0?`ramping up (+${fmt(spendDelta)} in 2025)`:`pulling back (${fmt(spendDelta)} in 2025)`;
-  parts.push(`<strong style="color:${ob.styleColor}">${ob.style}</strong> bidder, ${spendTrend}.`);
+  parts.push(`<strong style="color:${ob.styleColor}">${ob.style}</strong> bidder (2025 style), ${spendTrend}.`);
 
-  // 2. Money flow
+  // Money flow
   if(topPos.length){
     parts.push(`Money flows to <strong>${topPos.map(([p,v])=>`${p} (${fmt(v)})`).join(' and ')}</strong> across two seasons.`);
   }
 
-  // 3. Contested behavior
-  if(ob.totalWins>0){
-    parts.push(`Wins ${ob.contestedRate}% of adds in contested auctions${ob.avgMargin>0?`, overpaying by ~${fmt(Math.round(ob.avgMargin))} on average when they do`:''}.`);
+  // Per-position habits — usual bid + how often they break pattern
+  const habits=computePositionHabits(name).slice(0,3);
+  if(habits.length){
+    parts.push(`<strong>Habits:</strong> ${habits.map(h=>
+      h.breaks===0
+        ? `${h.pos} ~${fmt(h.usual)}, never ${fmt(h.breakT)}+ (n=${h.n})`
+        : `${h.pos} ~${fmt(h.usual)}, ${fmt(h.breakT)}+ ${h.breaks}x — max ${fmt(h.biggest.bid)} (n=${h.n})`
+    ).join(' · ')}.`);
   }
 
-  // 4. Panic signal
+  // TRUE contested record: entered vs won
+  if(cr.entered>=4){
+    parts.push(`Entered <strong>${cr.entered}</strong> contested auctions over two seasons and won <strong>${cr.rate}%</strong>${cr.medLossMargin!==null?`, typically losing by ${fmt(cr.medLossMargin)} when beaten`:''}.`);
+  }
+
+  // The beat price — the single most usable number
+  if(bp.price!==null){
+    parts.push(`<strong style="color:var(--lime)">Beat price: ${fmt(bp.price)}</strong> — clears 90% of every bid they've placed across two seasons (n=${bp.n}).`);
+  }
+
+  // Timing fingerprint (only if consistent both seasons)
+  if(timing.frontLoader){
+    parts.push(`<strong>Front-loader:</strong> ${timing.s25}% (2025) and ${timing.s24}% (2024) of budget gone by Week 6 — a non-factor late.`);
+  } else if(timing.saver){
+    parts.push(`<strong>Saver:</strong> only ${timing.s25}% / ${timing.s24}% of budget used by Week 6 across the two seasons — the late-season threat in any auction.`);
+  }
+
+  // Panic signal (hardened, medians)
   if(panic.isPanicBidder){
-    parts.push(`<strong style="color:var(--amber)">Desperation signal:</strong> avg bid jumps from ${fmt(panic.avgAfterWin)} to ${fmt(panic.avgAfterLoss)} the week after a loss (${panic.multiplier}x, n=${panic.nAfterLoss}/${panic.nAfterWin}) — expect inflated bids when they're coming off an L.`);
+    parts.push(`<strong style="color:var(--amber)">Desperation signal:</strong> median bid jumps from ${fmt(panic.medAfterWin)} to ${fmt(panic.medAfterLoss)} the week after a loss (n=${panic.nAfterLoss}/${panic.nAfterWin}) — expect inflated bids when they're coming off an L.`);
   } else if(panic.isIceCold){
-    parts.push(`Stays disciplined after losses — avg bid actually drops from ${fmt(panic.avgAfterWin)} to ${fmt(panic.avgAfterLoss)} (n=${panic.nAfterLoss}/${panic.nAfterWin}).`);
+    parts.push(`Tightens up after losses — median bid drops from ${fmt(panic.medAfterWin)} to ${fmt(panic.medAfterLoss)} (n=${panic.nAfterLoss}/${panic.nAfterWin}).`);
   }
 
-  // 5. Predictability + numerology
-  if(pred.cv!==null){
-    let predTxt=`${pred.label} (bid variance ${pred.cv}, n=${pred.n})`;
-    if(numer.pctRound!==null&&numer.pctRound>=70) predTxt+=` — bids round numbers ${numer.pctRound}% of the time, so <strong>$X+1 beats their $X</strong>`;
-    parts.push(predTxt+'.');
+  // Round-number bias (only if above league base rate)
+  if(numer.isRoundBidder){
+    parts.push(`Bids round numbers ${numer.pctRound}% of the time (league avg ${numer.pctRound-numer.vsLeague}%) — <strong>$X+1 beats their $X</strong> in coin-flip auctions.`);
   }
 
-  // 6. Late-season + broke pattern
+  // Exhaustion pattern
   const brokeTxt=[];
   if(broke25)brokeTxt.push(`Wk ${broke25} in 2025`);
   if(broke24)brokeTxt.push(`Wk ${broke24} in 2024`);
   if(brokeTxt.length===2){
-    parts.push(`<strong style="color:var(--green)">Exhaustion pattern:</strong> under $10 left by ${brokeTxt.join(' and ')} — wait them out late.`);
-  } else if(lateCeil.n>=3&&lateCeil.max<=8){
-    parts.push(`Has never bid above ${fmt(lateCeil.max)} after Week 10 (n=${lateCeil.n}) — a soft late-season ceiling.`);
+    parts.push(`<strong style="color:var(--green)">Exhaustion pattern:</strong> under $10 left by ${brokeTxt.join(' and ')} — they can't win a real auction late.`);
+  } else if(lateCeil.n>=4&&lateCeil.max<=8&&lateCeil.hadMoney>=25){
+    parts.push(`Had ${fmt(lateCeil.hadMoney)}+ available entering Week 11 and still never bid above ${fmt(lateCeil.max)} late (n=${lateCeil.n}) — a behavioral late-season ceiling, not a budget one.`);
   }
 
   return parts.join(' ');
 }
 
-// ── EDGES: ranked exploitable findings across the league ─────────────────────
+// ── EDGES: ranked exploitable findings — every edge states the action ─────────
 function buildEdges(){
   const managers=Object.values(ROSTER_MAP).filter(m=>m!==YOU);
   const edges=[];
   const mp=computeMarketPrice();
 
   managers.forEach(name=>{
-    const ob=buildOverbidAnalysis(name);
+    const cr=computeContestedRecord(name);
+    const bp=computeBeatPrice(name);
     const panic=computePanicIndex(name);
-    const pred=computePredictability(name);
     const numer=computeNumerology(name);
     const lateCeil=computeLateSeasonCeiling(name);
+    const timing=computeTimingFingerprint(name);
     const broke25=computeBrokeWeek(name,2025), broke24=computeBrokeWeek(name,2024);
-    const attempts=getBidAttempts(name,'all');
 
-    // Edge: panic bidder
+    // Desperation — hardened, medians
     if(panic.isPanicBidder){
       edges.push({name, score:90, n:panic.nAfterLoss+panic.nAfterWin,
-        text:`Bids ${panic.multiplier}x bigger after a loss (${fmt(panic.avgAfterWin)} → ${fmt(panic.avgAfterLoss)}). Avoid contesting them the week after they lose; bait them when budget matters.`,
+        text:`Median bid after a loss: ${fmt(panic.medAfterLoss)} vs ${fmt(panic.medAfterWin)} after a win. Action: don't contest them the week after they lose — they overpay. Do contest when they're coming off a win.`,
         tag:'Desperation', tagColor:'var(--amber)'});
     }
 
-    // Edge: repeat broke pattern
+    // Repeat exhaustion
     if(broke25&&broke24){
       const wk=Math.max(broke25,broke24);
       edges.push({name, score:85, n:2,
-        text:`Under $10 by Wk ${broke25} (2025) and Wk ${broke24} (2024). After Wk ${wk}, they can't outbid you.`,
+        text:`Under $10 by Wk ${broke25} (2025) and Wk ${broke24} (2024). Action: from Wk ${wk} on, any bid over $9 beats them by definition — stop budgeting for them in your contested-auction math.`,
         tag:'Exhaustion', tagColor:'var(--green)'});
     }
 
-    // Edge: round number bias
-    if(numer.pctRound!==null&&numer.pctRound>=75){
-      edges.push({name, score:70, n:numer.n,
-        text:`${numer.pctRound}% of their $5+ bids are multiples of 5. Bidding $X+1 against their likely $X wins the coin-flip auctions.`,
+    // Front-loader / saver — both-season consistent timing
+    if(timing.frontLoader&&!(broke25&&broke24)){
+      edges.push({name, score:72, n:2,
+        text:`Spends ${timing.s25}% / ${timing.s24}% of budget by Week 6 in consecutive seasons. Action: concede the early sprint, own the back half — they price themselves out of midseason.`,
+        tag:'Front-loader', tagColor:'var(--amber)'});
+    }
+    if(timing.saver){
+      edges.push({name, score:72, n:2,
+        text:`Used only ${timing.s25}% / ${timing.s24}% of budget by Week 6 across two seasons. Action: they are the live threat in every late auction — check their balance before any Wk 10+ bid.`,
+        tag:'Saver', tagColor:'var(--blue)'});
+    }
+
+    // True contested weakness: entered vs won
+    if(cr.entered>=6&&cr.rate!==null&&cr.rate<=30){
+      edges.push({name, score:68, n:cr.entered,
+        text:`Entered ${cr.entered} contested auctions across two seasons, won ${cr.rate}%${cr.medLossMargin!==null?` — typically short by ${fmt(cr.medLossMargin)}`:''}. Action: their presence in an auction barely raises the clearing price. Bid your number, not theirs.`,
+        tag:'Soft in contests', tagColor:'var(--muted2)'});
+    }
+
+    // True contested dominance — the inverse warning
+    if(cr.entered>=6&&cr.rate!==null&&cr.rate>=70){
+      edges.push({name, score:66, n:cr.entered,
+        text:`Won ${cr.rate}% of ${cr.entered} contested auctions entered${bp.price?`. Their 90% beat price is ${fmt(bp.price)}`:''}. Action: if they're in the auction, ${bp.price?`bid ${fmt(bp.price)} or don't bother`:'expect to pay full freight'}.`,
+        tag:'Closer', tagColor:'var(--red)'});
+    }
+
+    // Round-number bias — vs league base rate
+    if(numer.isRoundBidder){
+      edges.push({name, score:62, n:numer.n,
+        text:`${numer.pctRound}% of their $5+ bids land on multiples of 5 (${numer.vsLeague>0?'+':''}${numer.vsLeague} pts vs league norm). Action: bid $X+1 against their likely $X — wins the exact-tie auctions for one dollar.`,
         tag:'Numerology', tagColor:'var(--blue)'});
     }
 
-    // Edge: soft late ceiling
-    if(lateCeil.n>=4&&lateCeil.max<=8){
-      edges.push({name, score:65, n:lateCeil.n,
-        text:`Has never bid above ${fmt(lateCeil.max)} after Week 10 across two seasons. ${fmt(lateCeil.max+1)} wins any late-season auction against them.`,
+    // Behavioral late ceiling — only when they had budget
+    if(lateCeil.n>=4&&lateCeil.max<=8&&lateCeil.hadMoney>=25){
+      edges.push({name, score:60, n:lateCeil.n,
+        text:`Entered Week 11 with ${fmt(lateCeil.hadMoney)}+ available and still never bid above ${fmt(lateCeil.max)} late. That's behavior, not budget. Action: ${fmt(lateCeil.max+1)} wins any late-season auction against them.`,
         tag:'Late ceiling', tagColor:'var(--purple)'});
     }
 
-    // Edge: positional disengagement
+    // Positional disengagement — with market context
     ['QB','TE','DEF'].forEach(pos=>{
-      const posBids=attempts.filter(a=>a.pos===pos&&a.bid>2);
-      const anyBids=attempts.filter(a=>a.pos===pos);
-      if(anyBids.length>=2&&posBids.length===0){
-        edges.push({name, score:55, n:anyBids.length,
-          text:`Has never committed more than $2 to a ${pos} (n=${anyBids.length} attempts). $3 wins any ${pos} auction against them.`,
+      const attempts=getBidAttempts(name,'all').filter(a=>a.pos===pos);
+      if(attempts.length<3)return;
+      const maxBid=Math.max(...attempts.map(a=>a.bid));
+      const m=mp[pos];
+      if(maxBid<=2&&m&&m.all.n>=5&&m.all.avg>=maxBid+2){
+        edges.push({name, score:55, n:attempts.length,
+          text:`Max-ever ${pos} bid: ${fmt(maxBid)} across ${attempts.length} attempts, while the league's avg winning ${pos} bid is ${fmt(m.all.avg)}. Action: $${maxBid+1} takes any ${pos} they want.`,
           tag:pos+' ceiling', tagColor:posColor(pos)});
       }
     });
-
-    // Edge: weak contested record
-    if(ob.totalWins>=5&&ob.contestedRate<=25){
-      edges.push({name, score:50, n:ob.totalWins,
-        text:`Only ${ob.contestedRate}% of their adds came from contested auctions — they fold or lose when challenged. Your bid pressure works on them.`,
-        tag:'Avoids contests', tagColor:'var(--muted2)'});
-    }
-
-    // Edge: erratic — flag as anti-edge (warning)
-    if(pred.cv!==null&&pred.cv>1.2&&pred.n>=8){
-      edges.push({name, score:45, n:pred.n,
-        text:`Erratic bidder (variance ${pred.cv}) — their historical ceiling is unreliable. Budget extra margin or avoid contesting.`,
-        tag:'Unpredictable', tagColor:'var(--red)'});
-    }
   });
 
-  // League-level market edges
+  // League-level market timing
   ['RB','WR'].forEach(pos=>{
     const m=mp[pos];
     if(m&&m.late.n>=4&&m.early.n>=4&&m.early.avg>m.late.avg*1.8){
-      edges.push({name:'League-wide', score:60, n:m.early.n+m.late.n,
-        text:`${pos} market crashes late: avg winning bid falls from ${fmt(m.early.avg)} (Wks 1-6) to ${fmt(m.late.avg)} (Wks 13+). Patience pays at ${pos}.`,
+      edges.push({name:'League-wide', score:58, n:m.early.n+m.late.n,
+        text:`${pos} market crashes late: avg winning bid falls from ${fmt(m.early.avg)} (Wks 1-6) to ${fmt(m.late.avg)} (Wks 13+). Action: pay up early only for league-winners; depth pieces come ${Math.round((1-m.late.avg/Math.max(m.early.avg,1))*100)}% cheaper after Wk 12.`,
         tag:'Market timing', tagColor:'var(--lime)'});
     }
   });
 
   return edges.sort((a,b)=>b.score-a.score);
+}
+
+// Top edge per manager, cached — used for grid chips and quick context
+function topEdgeFor(name){
+  if(!APP._edges){
+    try{APP._edges=buildEdges();}catch(e){APP._edges=[];}
+  }
+  const e=APP._edges.find(x=>x.name===name);
+  if(!e)return null;
+  // Short one-liner for tight spaces: first sentence before "Action:"
+  const short=e.text.split('Action:')[0].trim().replace(/\.$/,'');
+  return{...e, short: short.length>90?short.slice(0,88)+'…':short};
 }
 
 // ── Season parser (reusable for both years) ──────────────────────────────
@@ -3135,17 +3471,35 @@ async function main(){
       });
     });
 
-    setMsg('Fetching player data...'); setProg(55);
+    setMsg('Resolving player names...'); setProg(55);
+    // Player cache: slim {pid:{name,pos}} map of ALL players in localStorage.
+    // Skips the ~8MB fetch on repeat visits (refreshed weekly). Also covers
+    // trending players, which aren't in league transactions.
+    const CACHE_KEY='faab_players_v2', CACHE_TTL=7*24*3600*1000;
     let playerMap={};
+    let usedCache=false;
     try{
-      const all=await fetchJ('https://api.sleeper.app/v1/players/nfl');
-      setProg(82);
-      neededPids.forEach(pid=>{
-        const p=all[pid];
-        if(p) playerMap[pid]={name:p.full_name||(p.first_name+' '+p.last_name).trim()||pid,pos:p.fantasy_positions?.[0]||p.position||'?'};
-        else playerMap[pid]={name:'Player '+pid,pos:'?'};
-      });
-    }catch(e){neededPids.forEach(pid=>{playerMap[pid]={name:pid,pos:'?'};});}
+      const c=JSON.parse(localStorage.getItem(CACHE_KEY)||'null');
+      if(c&&c.ts&&(Date.now()-c.ts)<CACHE_TTL&&c.map&&Object.keys(c.map).length>1000){
+        playerMap=c.map; usedCache=true; setProg(85);
+      }
+    }catch(e){}
+    if(!usedCache){
+      try{
+        const all=await fetchJ('https://api.sleeper.app/v1/players/nfl');
+        setProg(80);
+        setMsg('Building player cache...');
+        Object.entries(all).forEach(([pid,p])=>{
+          if(!p)return;
+          const pos=p.fantasy_positions?.[0]||p.position;
+          if(!pos)return; // skip non-fantasy entries to keep cache slim
+          playerMap[pid]={name:p.full_name||((p.first_name||'')+' '+(p.last_name||'')).trim()||pid,pos};
+        });
+        try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),map:playerMap}));}catch(e){/* quota — run uncached */}
+      }catch(e){neededPids.forEach(pid=>{playerMap[pid]={name:pid,pos:'?'};});}
+    }
+    // Guarantee every league pid resolves even if missing from cache/fetch
+    neededPids.forEach(pid=>{if(!playerMap[pid])playerMap[pid]={name:'Player '+pid,pos:'?'};});
     APP.playerMap=playerMap;
 
     setMsg('Parsing transactions...'); setProg(90);
@@ -3252,6 +3606,7 @@ async function main(){
           <div class="met"><div class="met-v ${s.avgBid>=15?'c-amber':''}">${s.avgBid>0?fmt(Math.round(s.avgBid)):'-'}</div><div class="met-l">avg bid</div></div>
           <div class="met"><div class="met-v ${s.remainingFAAB!==null&&s.remainingFAAB>=50?'c-green':s.remainingFAAB!==null&&s.remainingFAAB<=15?'c-red':'c-muted'}">${s.remainingFAAB!==null?fmt(s.remainingFAAB):'—'}</div><div class="met-l">left</div></div>
         </div>
+        ${(()=>{const e=topEdgeFor(name);return e?`<div class="mgr-edge-chip"><span class="edge-tag" style="color:${e.tagColor}">${e.tag}</span> <span>${e.short}</span></div>`:'';})()}
         <div class="mgr-card-hint">Click to drill in →</div>
       </div>`;
     }).join('');
@@ -3270,8 +3625,10 @@ async function main(){
     renderPacingChart('pacing-2025', stats, 2025);
     renderContestedPlayers('contested-2025', weeklyData, 2025);
 
+    APP._edges=null; APP._marketPrice=null; APP._roundRate=undefined;
     document.getElementById('loader').style.display='none';
     document.getElementById('views').style.display='block';
+    routeFromHash();
 
   }catch(err){
     document.getElementById('loader').innerHTML=`<div style="color:var(--red);padding:2rem;background:rgba(248,113,113,.08);border-radius:8px;border:.5px solid var(--red)">Error: ${err.message}</div>`;
