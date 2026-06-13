@@ -245,6 +245,14 @@ h1 em{color:var(--lime);font-style:normal}
 .edge-text{font-size:11px;color:var(--muted2);line-height:1.6}
 .edge-text strong{color:var(--text)}
 .edge-low-n{opacity:.55}
+/* League Intel categories */
+.li-cat{border:.5px solid var(--b1);border-radius:10px;background:var(--s1);margin-bottom:6px;overflow:hidden}
+.li-cat-head{width:100%;display:flex;align-items:center;gap:8px;padding:.75rem 1rem;background:transparent;border:none;cursor:pointer;font-family:'DM Mono',monospace;text-align:left;transition:background .12s}
+.li-cat-head:hover{background:var(--s2)}
+.li-cat-caret{font-size:10px;color:var(--muted2);width:12px;flex-shrink:0}
+.li-cat-title{font-size:12px;font-weight:500;color:var(--text);flex:1}
+.li-cat-count{font-size:9px;color:var(--muted2);background:var(--s2);border:.5px solid var(--b1);border-radius:10px;padding:1px 8px;flex-shrink:0}
+.li-cat-body{padding:0 .75rem .75rem}
 
 /* War Room */
 .wr-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:1.5rem}
@@ -1976,12 +1984,15 @@ function updateBidCalc(){
   if(!calc){result.innerHTML='';return;}
 
   // Optional target player banner (set from the Trending widget)
+  const totalMgrs=Object.values(ROSTER_MAP).filter(m=>m!==YOU).length;
+  const selCount=_bcState.competitors.size;
   const targetBanner=(_bcState.target && _bcState.target.pos===_bcState.pos)?`
     <div style="display:flex;align-items:center;gap:8px;background:rgba(200,241,53,.08);border:.5px solid rgba(200,241,53,.3);border-radius:8px;padding:7px 11px;margin-bottom:10px">
       <span style="font-size:14px">🎯</span>
       <div style="flex:1">
         <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Bidding on</div>
         <div style="font-size:13px;font-weight:500;color:var(--lime)"><span class="bid-pos-cell" style="color:${posColor(_bcState.target.pos)}">${_bcState.target.pos}</span> ${_bcState.target.name}</div>
+        ${selCount<totalMgrs?`<div style="font-size:9px;color:var(--muted2);margin-top:2px">Pre-selected the ${selCount} biggest threat${selCount!==1?'s':''} at ${_bcState.target.pos} — tick more above if you expect others to bid.</div>`:''}
       </div>
       <button onclick="clearBidCalcTarget()" style="font-size:9px;padding:3px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">Clear</button>
     </div>`:'';
@@ -2206,14 +2217,20 @@ function addTrendingToBidCalc(pid, name, pos){
   _bcState.pos=usePos;
   _bcState.target={pid, name, pos:usePos};
 
-  // Pre-select competitors who have actually bid this position before — the real threats.
-  // If none have history here, select everyone so the calc still returns guidance.
+  // Pre-select only the TOP 3 threats at this position — keeps the widget short
+  // and gives a focused starting recommendation. The remaining managers stay one
+  // tap away. Rank by adjusted ceiling (folds in style, trend, panic, win-rate).
   const managers=Object.values(ROSTER_MAP).filter(m=>m!==YOU);
-  const threats=managers.filter(m=>{
-    const intel=buildPositionIntel(m,'all')[usePos];
-    return intel && !intel.empty && intel.allBids && intel.allBids.length>0;
-  });
-  _bcState.competitors=new Set(threats.length?threats:managers);
+  const ranked=calcBidRecommendation(usePos, managers).results
+    .filter(r=>r.hasData)
+    .sort((a,b)=>(b.effectiveCeiling||0)-(a.effectiveCeiling||0));
+  const top3=ranked.slice(0,3).map(r=>r.name);
+  // If nobody has history here, fall back to the 3 most aggressive overall bidders
+  // so the calc still returns guidance rather than an empty prompt.
+  const fallback=managers
+    .map(m=>({m, spent:(APP.stats[m]?.totalSpent||0)+(APP.stats2024[m]?.totalSpent||0)}))
+    .sort((a,b)=>b.spent-a.spent).slice(0,3).map(x=>x.m);
+  _bcState.competitors=new Set(top3.length?top3:fallback);
 
   // Sync the UI: position dropdown + competitor chips
   const posEl=document.getElementById('bc-pos');
@@ -2237,7 +2254,12 @@ function addTrendingToBidCalc(pid, name, pos){
 }
 
 function clearBidCalcTarget(){
+  // "Clear" restores the calculator to its original empty state — no target AND
+  // no competitors — so removing the player snaps back exactly like clearing all
+  // teams does. (Previously this only nulled the target, leaving the chips set.)
   _bcState.target=null;
+  _bcState.competitors=new Set();
+  document.querySelectorAll('.bc-mgr-check').forEach(el=>el.classList.remove('selected'));
   updateBidCalc();
 }
 
@@ -2342,7 +2364,7 @@ function computeLeagueIntel(){
   const winBids=auctions.map(a=>a.winner.bid);
   const medWin=median(winBids);
   const cheapPct=Math.round(winBids.filter(b=>b<=2).length/winBids.length*100);
-  items.push({tag:'Price floor', tagColor:'var(--lime)', n:winBids.length,
+  items.push({tag:'Price floor', tagColor:'var(--lime)', category:'Pricing & market', n:winBids.length,
     text:`Median winning bid in this league is <strong>${fmt(medWin)}</strong> and ${cheapPct}% of all adds cost $2 or less. Volume and timing beat splash bids — the wire is cheap if you're patient.`});
 
   // 2. Competition reality: how often auctions are actually contested
@@ -2352,7 +2374,7 @@ function computeLeagueIntel(){
     const others=a.bids.filter(b=>b!==a.winner).map(b=>b.bid);
     return a.winner.bid-Math.max(...others);
   });
-  items.push({tag:'Competition', tagColor:'var(--blue)', n:auctions.length,
+  items.push({tag:'Competition', tagColor:'var(--blue)', category:'Competition & contests', n:auctions.length,
     text:`Only <strong>${contestedPct}%</strong> of auctions draw a second bidder (${contested.length} of ${auctions.length}). When they do, the winner clears 2nd place by a median <strong>${fmt(median(margins))}</strong> — modest bumps win most fights here.`});
 
   // 3. Exact ties — decided by waiver priority
@@ -2361,7 +2383,7 @@ function computeLeagueIntel(){
     return a.winner.bid===Math.max(...others);
   }).length;
   if(ties>=2){
-    items.push({tag:'Exact ties', tagColor:'var(--amber)', n:ties,
+    items.push({tag:'Exact ties', tagColor:'var(--amber)', category:'Competition & contests', n:ties,
       text:`<strong>${ties} auctions</strong> ended in identical bids and were decided by waiver priority alone. Never bid the obvious number — one extra dollar wins these outright.`});
   }
 
@@ -2371,7 +2393,7 @@ function computeLeagueIntel(){
     if(m&&m.early.n>=4&&m.late.n>=4&&m.early.avg>0){
       const dropPct=Math.round((1-m.late.avg/m.early.avg)*100);
       if(dropPct>=40){
-        items.push({tag:pos+' timing', tagColor:posColor(pos), n:m.early.n+m.late.n,
+        items.push({tag:pos+' timing', tagColor:posColor(pos), category:'Pricing & market', n:m.early.n+m.late.n,
           text:`${pos} prices crash <strong>${dropPct}%</strong> over the season: avg winning bid ${fmt(m.early.avg)} in Wks 1-6 → ${fmt(m.late.avg)} after Wk 12. Pay early only for league-winners; depth comes cheap late.`});
       }
     }
@@ -2384,7 +2406,7 @@ function computeLeagueIntel(){
   if(topWeeks.length===2){
     const totalSpend=Object.values(wkTotals).reduce((s,v)=>s+v,0);
     const sharePct=Math.round((topWeeks[0][1]+topWeeks[1][1])/totalSpend*100);
-    items.push({tag:'Calendar', tagColor:'var(--purple)', n:totalSpend,
+    items.push({tag:'Calendar', tagColor:'var(--purple)', category:'The calendar', n:totalSpend,
       text:`Weeks <strong>${topWeeks[0][0]}</strong> and <strong>${topWeeks[1][0]}</strong> are this league's bidding wars — ${sharePct}% of all FAAB ever spent moved in those two weeks (${fmt(topWeeks[0][1])} + ${fmt(topWeeks[1][1])}). Expect inflation there; shop off-cycle.`});
   }
 
@@ -2403,7 +2425,7 @@ function computeLeagueIntel(){
     const avg=arr=>Math.round(arr.reduce((s,v)=>s+v.spent,0)/arr.length);
     const topAvg=avg(sorted.slice(0,half)), botAvg=avg(sorted.slice(half));
     const diffPct=botAvg>0?Math.round((topAvg-botAvg)/botAvg*100):0;
-    items.push({tag:'Spend vs wins', tagColor:'var(--green)', n:samples.length,
+    items.push({tag:'Spend vs wins', tagColor:'var(--green)', category:'Winning patterns', n:samples.length,
       text:Math.abs(diffPct)<15
         ?`FAAB spend barely separates winners from losers: winning-half teams averaged <strong>${fmt(topAvg)}</strong> spent vs <strong>${fmt(botAvg)}</strong> for the bottom half (manager-seasons, both years). Drafting decides this league — the wire is for patching, not building.`
         :diffPct>0
@@ -2414,14 +2436,14 @@ function computeLeagueIntel(){
   // 7. League round-number norm
   const rr=leagueRoundRate();
   if(rr!==null&&rr>=50){
-    items.push({tag:'Numerology', tagColor:'var(--blue)', n:null,
+    items.push({tag:'Numerology', tagColor:'var(--blue)', category:'Exploitable quirks', n:null,
       text:`<strong>${rr}%</strong> of all $5+ bids league-wide land on multiples of 5. The +$1 trick is structurally profitable in this league — make $11, $16 and $21 your default numbers.`});
   }
 
   // 8. Position price ladder — what a win costs by position
   const ladder=['RB','WR','QB','TE','DEF','K'].map(p=>({p,avg:mp[p]?.all.avg||0,n:mp[p]?.all.n||0})).filter(x=>x.n>=4).sort((a,b)=>b.avg-a.avg);
   if(ladder.length>=3&&ladder[1].avg>0){
-    items.push({tag:'Price ladder', tagColor:'var(--lime)', n:ladder.reduce((s,x)=>s+x.n,0),
+    items.push({tag:'Price ladder', tagColor:'var(--lime)', category:'Pricing & market', n:ladder.reduce((s,x)=>s+x.n,0),
       text:`What a win costs by position: ${ladder.map(x=>`<strong>${x.p} ${fmt(x.avg)}</strong>`).join(' · ')}. ${ladder[0].p} is the premium aisle at ${(ladder[0].avg/ladder[1].avg).toFixed(1)}x ${ladder[1].p} — budget accordingly or shop where the league doesn't.`});
   }
 
@@ -2441,7 +2463,7 @@ function computeLeagueIntel(){
       :bothBig?'Both champions outspent the room — hoarding has not won this league.'
       :bothThrifty?'Both champions spent below league average — titles here are drafted, not bought.'
       :'No single pattern — this league has been won both ways.';
-    items.push({tag:"Champion's blueprint", tagColor:'var(--lime)', n:2,
+    items.push({tag:"Champion's blueprint", tagColor:'var(--lime)', category:'Winning patterns', n:2,
       text:`${champData.map(c=>`<strong>${c.yr}: ${c.cn}</strong> spent ${fmt(c.spent)} (league avg ${fmt(c.lgAvg)}), entered Wk 10 holding ${fmt(c.wk10)}`).join('. ')}. ${verdict}`});
   }
 
@@ -2450,7 +2472,7 @@ function computeLeagueIntel(){
     const biggest=auctions.reduce((a,b)=>b.winner.bid>a.winner.bid?b:a);
     const bOthers=biggest.bids.filter(b=>b!==biggest.winner).map(b=>b.bid);
     const bMargin=bOthers.length?biggest.winner.bid-Math.max(...bOthers):null;
-    items.push({tag:'Record bid', tagColor:'var(--amber)', n:null,
+    items.push({tag:'Record bid', tagColor:'var(--amber)', category:'Exploitable quirks', n:null,
       text:`League record: <strong>${fmt(biggest.winner.bid)}</strong> by ${biggest.winner.manager} on ${biggest.name} (Wk ${biggest.week}, ${biggest.season})${bMargin!==null?` — cleared the next bid by ${fmt(bMargin)}`:' — completely uncontested'}. That is the panic ceiling this room is capable of.`});
   }
 
@@ -2462,7 +2484,7 @@ function computeLeagueIntel(){
     if(over>0){tax+=over; if(!worst||over>worst.over)worst={over,a,second};}
   });
   if(tax>=10&&worst){
-    items.push({tag:'Overpay tax', tagColor:'var(--red)', n:contested.length,
+    items.push({tag:'Overpay tax', tagColor:'var(--red)', category:'Exploitable quirks', n:contested.length,
       text:`Contested winners collectively paid <strong>${fmt(tax)}</strong> more than they needed to (vs 2nd bid + $1). Worst case: ${worst.a.winner.manager} paid ${fmt(worst.a.winner.bid)} for ${worst.a.name} when ${fmt(worst.second+1)} would have won (Wk ${worst.a.week}, ${worst.a.season}). Tight margins are free budget.`});
   }
 
@@ -2478,7 +2500,7 @@ function computeLeagueIntel(){
   if(wk10Rem.length>=12){
     const avgRem=Math.round(wk10Rem.reduce((a,b)=>a+b,0)/wk10Rem.length);
     const brokeCt=wk10Rem.filter(r=>r<10).length;
-    items.push({tag:"Buyer's market", tagColor:'var(--purple)', n:wk10Rem.length,
+    items.push({tag:"Buyer's market", tagColor:'var(--purple)', category:'The calendar', n:wk10Rem.length,
       text:`The league enters Wk 10 with an average <strong>${fmt(avgRem)}</strong> remaining — and ${brokeCt} of ${wk10Rem.length} manager-seasons were already under $10. Bank ~$30 past Wk 9 and the stretch-run wire is nearly uncontested.`});
   }
 
@@ -2487,11 +2509,23 @@ function computeLeagueIntel(){
   contested.forEach(a=>{fightByWeek[a.week]=(fightByWeek[a.week]||0)+1;});
   const fw=Object.entries(fightByWeek).sort((a,b)=>b[1]-a[1])[0];
   if(fw&&fw[1]>=4){
-    items.push({tag:'Fight week', tagColor:'var(--amber)', n:contested.length,
+    items.push({tag:'Fight week', tagColor:'var(--amber)', category:'Competition & contests', n:contested.length,
       text:`Week <strong>${fw[0]}</strong> is fight week: ${fw[1]} contested auctions across two seasons, more than any other. Claims landing that week need a buffer — a week later, prices sag.`});
   }
 
   return items;
+}
+
+// Fixed category order — controls display sequence regardless of insight order
+const LI_CATEGORY_ORDER=['Pricing & market','Competition & contests','The calendar','Winning patterns','Exploitable quirks'];
+
+function toggleLeagueIntelCat(idx){
+  const body=document.getElementById('li-cat-body-'+idx);
+  const caret=document.getElementById('li-cat-caret-'+idx);
+  if(!body)return;
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  if(caret)caret.textContent=open?'▸':'▾';
 }
 
 function renderLeagueIntel(){
@@ -2499,16 +2533,38 @@ function renderLeagueIntel(){
   if(!el)return;
   const items=computeLeagueIntel();
   if(!items.length){el.innerHTML=`<div style="color:var(--muted);font-size:11px">Not enough data yet.</div>`;return;}
-  el.innerHTML=items.map(it=>`
-    <div class="edge-card">
-      <div class="edge-body">
-        <div class="edge-top">
-          <span class="edge-tag" style="color:${it.tagColor}">${it.tag}</span>
-          ${it.n?`<span class="edge-n">n=${it.n}</span>`:''}
+
+  // Group insights by category, preserving the fixed display order.
+  const groups={};
+  items.forEach(it=>{const c=it.category||'Other'; (groups[c]=groups[c]||[]).push(it);});
+  const cats=LI_CATEGORY_ORDER.filter(c=>groups[c]&&groups[c].length);
+  // Append any uncategorised groups at the end (safety net)
+  Object.keys(groups).forEach(c=>{if(!cats.includes(c))cats.push(c);});
+
+  el.innerHTML=`
+    <p style="font-size:10px;color:var(--muted);margin:-2px 0 10px">Tap a category to expand its insights.</p>
+    ${cats.map((cat,idx)=>{
+      const list=groups[cat];
+      return `<div class="li-cat">
+        <button class="li-cat-head" onclick="toggleLeagueIntelCat(${idx})" aria-expanded="false">
+          <span class="li-cat-caret" id="li-cat-caret-${idx}">▸</span>
+          <span class="li-cat-title">${cat}</span>
+          <span class="li-cat-count">${list.length}</span>
+        </button>
+        <div class="li-cat-body" id="li-cat-body-${idx}" style="display:none">
+          ${list.map(it=>`
+            <div class="edge-card">
+              <div class="edge-body">
+                <div class="edge-top">
+                  <span class="edge-tag" style="color:${it.tagColor}">${it.tag}</span>
+                  ${it.n?`<span class="edge-n">n=${it.n}</span>`:''}
+                </div>
+                <div class="edge-text">${it.text}</div>
+              </div>
+            </div>`).join('')}
         </div>
-        <div class="edge-text">${it.text}</div>
-      </div>
-    </div>`).join('');
+      </div>`;
+    }).join('')}`;
 }
 
 // ── USABILITY HELPERS ─────────────────────────────────────────────────────────
