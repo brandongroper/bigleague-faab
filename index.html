@@ -193,6 +193,8 @@ h1 em{color:var(--lime);font-style:normal}
 .yoy-bar-card{background:var(--s1);border:.5px solid var(--b1);border-radius:12px;padding:1.1rem 1.25rem;cursor:pointer;transition:border-color .15s}
 .yoy-bar-card:hover{border-color:var(--b2)}
 .view{display:none}.view.active{display:block}
+.tipw{position:relative;cursor:help;border-bottom:.5px dotted var(--muted)}
+.tip-pop{position:absolute;top:calc(100% + 6px);right:0;z-index:60;background:#16161b;border:.5px solid var(--b2);border-radius:8px;padding:8px 11px;font-size:10px;color:var(--muted2);width:210px;line-height:1.55;text-align:left;box-shadow:0 10px 28px rgba(0,0,0,.55);font-family:'DM Mono',monospace;text-transform:none;letter-spacing:0;font-weight:400}
 .mgr-edge-chip{font-size:9px;color:var(--muted2);line-height:1.5;margin-top:8px;padding-top:8px;border-top:.5px dashed var(--b1);display:flex;gap:6px;align-items:flex-start}
 
 /* Jump nav + collapsible year sections */
@@ -1521,6 +1523,10 @@ function calcBidRecommendation(pos, competitors){
       habit={usual:hUsual,breakT:hBreakT,breaks:habitAtt.filter(a=>a.bid>=hBreakT).length,n:habitAtt.length};
     }
 
+    // Ground in reality: nobody has ever paid more than their all-time max.
+    // Style/trend adjustments move within their history — they don't invent new highs.
+    if(allTimeMax>0) effectiveCeiling=Math.min(effectiveCeiling, allTimeMax);
+
     // Risk level based on effective ceiling
     let risk;
     if(hasOutliers&&allTimeMax>=ceiling*1.5&&allTimeMax>=10) risk='Spike risk';
@@ -1576,11 +1582,8 @@ function calcBidRecommendation(pos, competitors){
     const hasSpike=results.some(r=>r.risk==='Spike risk');
     const adjustments=active.flatMap(r=>r.notes).filter(Boolean);
 
-    reasoning=`Based on ${topThreat.name}'s effective ${pos} ceiling of ${fmt(topThreat.effectiveCeiling)}`;
-    if(topThreat.effectiveCeiling!==topThreat.ceiling){
-      reasoning+=` (adjusted from raw ceiling of ${fmt(topThreat.ceiling)})`;
-    }
-    reasoning+='.';
+    reasoning=`Top threat: ${topThreat.name} (historical max ${fmt(topThreat.allTimeMax)}, adjusted ceiling ${fmt(topThreat.effectiveCeiling)}).`;
+    if(valueBid!==null) reasoning+=` The recommended ${fmt(valueBid)} clears 90% of everything ${active.length>1?'these managers have':topThreat.name+' has'} ever bid — paying more buys certainty, not value.`;
     if(adjustments.length) reasoning+=` Key factors: ${adjustments.slice(0,2).join('; ')}.`;
   }
 
@@ -1791,6 +1794,20 @@ function renderWarRoom(){
     </div>
 
 
+    <!-- LEAGUE INTEL — full width -->
+    <div class="wr-panel" style="margin-bottom:1rem">
+      <div class="wr-panel-header">
+        <span class="wr-panel-icon">🏛️</span>
+        <div>
+          <div class="wr-panel-title">League Intel — how this league behaves</div>
+          <div class="wr-panel-sub">Structural patterns from two seasons · the table you're sitting at</div>
+        </div>
+      </div>
+      <div class="wr-panel-body">
+        <div id="league-intel-content"><div style="color:var(--muted);font-size:11px">Computing league patterns...</div></div>
+      </div>
+    </div>
+
     <!-- EDGES — full width -->
     <div class="wr-panel accent" style="margin-bottom:1rem">
       <div class="wr-panel-header">
@@ -1857,6 +1874,7 @@ function renderWarRoom(){
   // Init budget strategy — defer to ensure DOM is ready after innerHTML set
   setTimeout(updateBudgetStrategy, 0);
   setTimeout(renderEdges, 0);
+  setTimeout(renderLeagueIntel, 0);
 }
 
 function renderEdges(){
@@ -1868,7 +1886,7 @@ function renderEdges(){
     return;
   }
   el.innerHTML=`
-    ${edges.slice(0,14).map((e,i)=>{
+    ${edges.slice(0,18).map((e,i)=>{
       const lowN=e.n<5;
       return`<div class="edge-card${lowN?' edge-low-n':''}" ${e.name!=='League-wide'?`onclick="goToManager('${e.name}')" style="cursor:pointer"`:''}>
         <div class="edge-rank">${i+1}</div>
@@ -1911,22 +1929,30 @@ function updateBidCalc(){
   if(!calc){result.innerHTML='';return;}
 
   const {results,recommended,safeFloor,hasSpike}=calc;
-  const budgetPct=Math.round(recommended/BUDGET*100);
-  const wouldLeave=remaining-recommended;
+  // Headline = the empirical value bid (clears 90% of their bid history).
+  // The Lock (beats historical max) is shown as a tier, not the headline.
+  const headline=(calc.valueBid!==null&&calc.valueBid!==undefined)?Math.max(calc.valueBid,safeFloor):recommended;
+  const headlineLbl=(calc.valueBid!==null&&calc.valueBid!==undefined)?'Recommended bid · clears 90% of their bid history':'Recommended bid';
+  const budgetPct=Math.round(headline/BUDGET*100);
+  const wouldLeave=remaining-headline;
   const budgetWarn=wouldLeave<15&&remaining<BUDGET;
+  // Reality check vs what this league actually pays
+  const mkt=computeMarketPrice()[_bcState.pos];
+  const mktRef=(mkt&&mkt.all.n>=8)?mkt.all.avg:null;
+  const mktWarn=mktRef!==null&&headline>=mktRef*2&&(headline-mktRef)>=6;
 
   result.innerHTML=`
     <div class="bc-result">
       <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:8px">
         <div>
-          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Recommended bid</div>
-          <div class="bc-rec-bid">${fmt(recommended)}</div>
+          <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">${headlineLbl}</div>
+          <div class="bc-rec-bid">${fmt(headline)}</div>
           <div class="bc-rec-sub">${budgetPct}% of budget</div>
           <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
             <div style="background:var(--s1);border:.5px solid var(--b1);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Floor</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--muted2)">${fmt(safeFloor)}</span><div style="font-size:8px;color:var(--muted)">beats their typical bid</div></div>
-            ${calc.valueBid!==null?`<div style="background:var(--s1);border:.5px solid rgba(96,165,250,.3);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.06em">Value</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--blue)">${fmt(calc.valueBid)}</span><div style="font-size:8px;color:var(--muted)">clears 90% of their bid history</div></div>`:''}
-            <div style="background:var(--s1);border:.5px solid rgba(200,241,53,.3);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--lime);text-transform:uppercase;letter-spacing:.06em">Lock</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--lime)">${fmt(recommended)}</span><div style="font-size:8px;color:var(--muted)">beats adjusted ceiling</div></div>
+            <div style="background:var(--s1);border:.5px solid rgba(200,241,53,.3);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--lime);text-transform:uppercase;letter-spacing:.06em">Lock</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--lime)">${fmt(recommended)}</span><div style="font-size:8px;color:var(--muted)">beats their historical max — pay only for a league-winner</div></div>
           </div>
+          ${mktWarn?`<div style="background:rgba(251,191,36,.07);border:.5px solid rgba(251,191,36,.25);border-radius:8px;padding:7px 11px;font-size:10px;color:var(--amber);margin-top:8px;line-height:1.5">Reality check: ${fmt(headline)} is ${(headline/mktRef).toFixed(1)}x what a ${_bcState.pos} actually costs in this league (avg winning bid ${fmt(mktRef)}, n=${mkt.all.n}). That price is for difference-makers only.</div>`:''}
           ${calc.reasoning?`<div style="font-size:10px;color:var(--muted2);margin-top:6px;line-height:1.5">${calc.reasoning}</div>`:''}
         </div>
         ${hasSpike?`<div style="font-size:10px;background:rgba(251,191,36,.1);border:.5px solid rgba(251,191,36,.3);border-radius:6px;padding:4px 8px;color:var(--amber);max-width:160px;line-height:1.5">⚠ Spike risk detected — a competitor has bid well above their ceiling before</div>`:''}
@@ -1934,10 +1960,10 @@ function updateBidCalc(){
       <div class="bc-competitor-table">
         <div class="bc-comp-row bc-comp-hdr">
           <div>Manager · archetype · notes</div>
-          <div style="text-align:right;cursor:help" title="Median of all their bids at this position (won + failed, two seasons)">Typical</div>
-          <div style="text-align:right;cursor:help" title="Highest typical bid, excluding outlier spikes">Raw ceiling</div>
-          <div style="text-align:right;cursor:help" title="Ceiling adjusted for bidding style, YoY trend, panic signal and spike history">Adj. ceiling</div>
-          <div style="text-align:right;cursor:help" title="How dangerous they are at this position given ceiling and bid volume">Risk</div>
+          <div class="tipw" style="text-align:right" data-tip="Median of all their bids at this position (won + failed, two seasons)" onclick="toggleTip(this,event)">Typical</div>
+          <div class="tipw" style="text-align:right" data-tip="Highest typical bid, excluding outlier spikes" onclick="toggleTip(this,event)">Raw ceiling</div>
+          <div class="tipw" style="text-align:right" data-tip="Their ceiling adjusted for bidding style, trend and panic signal — capped at the most they've ever actually paid" onclick="toggleTip(this,event)">Adj. ceiling</div>
+          <div class="tipw" style="text-align:right" data-tip="How dangerous they are at this position given ceiling and bid volume" onclick="toggleTip(this,event)">Risk</div>
         </div>
         ${!results.some(r=>r.hasData)?`<div style="font-size:11px;color:var(--muted);padding:8px 0">No historical bid data at ${_bcState.pos} for selected managers.</div>`:''}
         ${results.map(r=>`
@@ -2191,6 +2217,196 @@ function renderTrending(){
     </div>`;
 }
 
+// ── LEAGUE INTEL: structural patterns — how this league behaves ───────────────
+function computeLeagueIntel(){
+  const items=[];
+  const mp=computeMarketPrice();
+
+  // Gather every auction across both seasons
+  const auctions=[];
+  [[APP.weeklyData,2025],[APP.weeklyData2024,2024]].forEach(([wd,season])=>{
+    Object.entries(wd||{}).forEach(([wStr,d])=>{
+      (d.players||[]).forEach(p=>{
+        const winner=p.bids.find(b=>b.status==='complete');
+        if(winner)auctions.push({week:parseInt(wStr),pos:p.pos,name:p.name,season,winner,bids:p.bids});
+      });
+    });
+  });
+  if(!auctions.length)return items;
+
+  // 1. The price floor: what winning actually costs here
+  const winBids=auctions.map(a=>a.winner.bid);
+  const medWin=median(winBids);
+  const cheapPct=Math.round(winBids.filter(b=>b<=2).length/winBids.length*100);
+  items.push({tag:'Price floor', tagColor:'var(--lime)', n:winBids.length,
+    text:`Median winning bid in this league is <strong>${fmt(medWin)}</strong> and ${cheapPct}% of all adds cost $2 or less. Volume and timing beat splash bids — the wire is cheap if you're patient.`});
+
+  // 2. Competition reality: how often auctions are actually contested
+  const contested=auctions.filter(a=>a.bids.length>1);
+  const contestedPct=Math.round(contested.length/auctions.length*100);
+  const margins=contested.map(a=>{
+    const others=a.bids.filter(b=>b!==a.winner).map(b=>b.bid);
+    return a.winner.bid-Math.max(...others);
+  });
+  items.push({tag:'Competition', tagColor:'var(--blue)', n:auctions.length,
+    text:`Only <strong>${contestedPct}%</strong> of auctions draw a second bidder (${contested.length} of ${auctions.length}). When they do, the winner clears 2nd place by a median <strong>${fmt(median(margins))}</strong> — modest bumps win most fights here.`});
+
+  // 3. Exact ties — decided by waiver priority
+  const ties=contested.filter(a=>{
+    const others=a.bids.filter(b=>b!==a.winner).map(b=>b.bid);
+    return a.winner.bid===Math.max(...others);
+  }).length;
+  if(ties>=2){
+    items.push({tag:'Exact ties', tagColor:'var(--amber)', n:ties,
+      text:`<strong>${ties} auctions</strong> ended in identical bids and were decided by waiver priority alone. Never bid the obvious number — one extra dollar wins these outright.`});
+  }
+
+  // 4. Market timing per position
+  ['RB','WR','TE','QB'].forEach(pos=>{
+    const m=mp[pos];
+    if(m&&m.early.n>=4&&m.late.n>=4&&m.early.avg>0){
+      const dropPct=Math.round((1-m.late.avg/m.early.avg)*100);
+      if(dropPct>=40){
+        items.push({tag:pos+' timing', tagColor:posColor(pos), n:m.early.n+m.late.n,
+          text:`${pos} prices crash <strong>${dropPct}%</strong> over the season: avg winning bid ${fmt(m.early.avg)} in Wks 1-6 → ${fmt(m.late.avg)} after Wk 12. Pay early only for league-winners; depth comes cheap late.`});
+      }
+    }
+  });
+
+  // 5. Spend calendar: when the league's money actually moves
+  const wkTotals={};
+  [APP.weekTotals,APP.weekTotals2024].forEach(wt=>Object.entries(wt||{}).forEach(([w,v])=>{wkTotals[w]=(wkTotals[w]||0)+v;}));
+  const topWeeks=Object.entries(wkTotals).sort((a,b)=>b[1]-a[1]).slice(0,2);
+  if(topWeeks.length===2){
+    const totalSpend=Object.values(wkTotals).reduce((s,v)=>s+v,0);
+    const sharePct=Math.round((topWeeks[0][1]+topWeeks[1][1])/totalSpend*100);
+    items.push({tag:'Calendar', tagColor:'var(--purple)', n:totalSpend,
+      text:`Weeks <strong>${topWeeks[0][0]}</strong> and <strong>${topWeeks[1][0]}</strong> are this league's bidding wars — ${sharePct}% of all FAAB ever spent moved in those two weeks (${fmt(topWeeks[0][1])} + ${fmt(topWeeks[1][1])}). Expect inflation there; shop off-cycle.`});
+  }
+
+  // 6. Does money buy wins here?
+  const samples=[];
+  [[APP.results,APP.stats],[APP.results2024,APP.stats2024]].forEach(([res,st])=>{
+    Object.values(ROSTER_MAP).forEach(name=>{
+      if(!res||!res[name]||!st[name])return;
+      const wins=Object.values(res[name]).filter(r=>r==='W').length;
+      samples.push({wins,spent:st[name].totalSpent||0});
+    });
+  });
+  if(samples.length>=12){
+    const sorted=[...samples].sort((a,b)=>b.wins-a.wins);
+    const half=Math.floor(sorted.length/2);
+    const avg=arr=>Math.round(arr.reduce((s,v)=>s+v.spent,0)/arr.length);
+    const topAvg=avg(sorted.slice(0,half)), botAvg=avg(sorted.slice(half));
+    const diffPct=botAvg>0?Math.round((topAvg-botAvg)/botAvg*100):0;
+    items.push({tag:'Spend vs wins', tagColor:'var(--green)', n:samples.length,
+      text:Math.abs(diffPct)<15
+        ?`FAAB spend barely separates winners from losers: winning-half teams averaged <strong>${fmt(topAvg)}</strong> spent vs <strong>${fmt(botAvg)}</strong> for the bottom half (manager-seasons, both years). Drafting decides this league — the wire is for patching, not building.`
+        :diffPct>0
+        ?`Winning teams spend here: the winning half averaged <strong>${fmt(topAvg)}</strong> in FAAB vs <strong>${fmt(botAvg)}</strong> for the bottom half (+${diffPct}%). Hoarding budget has not been the winning play.`
+        :`Counterintuitive: the winning half actually spent LESS (${fmt(topAvg)} vs ${fmt(botAvg)}). Big FAAB outlays have been a symptom of bad rosters, not a cure.`});
+  }
+
+  // 7. League round-number norm
+  const rr=leagueRoundRate();
+  if(rr!==null&&rr>=50){
+    items.push({tag:'Numerology', tagColor:'var(--blue)', n:null,
+      text:`<strong>${rr}%</strong> of all $5+ bids league-wide land on multiples of 5. The +$1 trick is structurally profitable in this league — make $11, $16 and $21 your default numbers.`});
+  }
+
+  // 8. Position price ladder — what a win costs by position
+  const ladder=['RB','WR','QB','TE','DEF','K'].map(p=>({p,avg:mp[p]?.all.avg||0,n:mp[p]?.all.n||0})).filter(x=>x.n>=4).sort((a,b)=>b.avg-a.avg);
+  if(ladder.length>=3&&ladder[1].avg>0){
+    items.push({tag:'Price ladder', tagColor:'var(--lime)', n:ladder.reduce((s,x)=>s+x.n,0),
+      text:`What a win costs by position: ${ladder.map(x=>`<strong>${x.p} ${fmt(x.avg)}</strong>`).join(' · ')}. ${ladder[0].p} is the premium aisle at ${(ladder[0].avg/ladder[1].avg).toFixed(1)}x ${ladder[1].p} — budget accordingly or shop where the league doesn't.`});
+  }
+
+  // 9. Champion's blueprint — what the title winners actually did
+  const champData=[[WINNER,APP.stats,'2025'],[WINNER_2024,APP.stats2024,'2024']].map(([cn,st,yr])=>{
+    const s=st[cn]; if(!s)return null;
+    let rem=BUDGET; for(let w=1;w<=10;w++)rem-=(s.weekSpend?.[w]||0);
+    const allSpend=Object.values(ROSTER_MAP).map(n=>st[n]?.totalSpent||0);
+    const lgAvg=Math.round(allSpend.reduce((a,b)=>a+b,0)/allSpend.length);
+    return{cn,yr,spent:s.totalSpent,lgAvg,wk10:rem};
+  }).filter(Boolean);
+  if(champData.length===2){
+    const bothLiquid=champData.every(c=>c.wk10>=25);
+    const bothBig=champData.every(c=>c.spent>c.lgAvg);
+    const bothThrifty=champData.every(c=>c.spent<c.lgAvg);
+    const verdict=bothLiquid?'Both champions stayed liquid into the stretch run — that is the winning pattern here.'
+      :bothBig?'Both champions outspent the room — hoarding has not won this league.'
+      :bothThrifty?'Both champions spent below league average — titles here are drafted, not bought.'
+      :'No single pattern — this league has been won both ways.';
+    items.push({tag:"Champion's blueprint", tagColor:'var(--lime)', n:2,
+      text:`${champData.map(c=>`<strong>${c.yr}: ${c.cn}</strong> spent ${fmt(c.spent)} (league avg ${fmt(c.lgAvg)}), entered Wk 10 holding ${fmt(c.wk10)}`).join('. ')}. ${verdict}`});
+  }
+
+  // 10. Record bid — the league's panic ceiling
+  if(auctions.length){
+    const biggest=auctions.reduce((a,b)=>b.winner.bid>a.winner.bid?b:a);
+    const bOthers=biggest.bids.filter(b=>b!==biggest.winner).map(b=>b.bid);
+    const bMargin=bOthers.length?biggest.winner.bid-Math.max(...bOthers):null;
+    items.push({tag:'Record bid', tagColor:'var(--amber)', n:null,
+      text:`League record: <strong>${fmt(biggest.winner.bid)}</strong> by ${biggest.winner.manager} on ${biggest.name} (Wk ${biggest.week}, ${biggest.season})${bMargin!==null?` — cleared the next bid by ${fmt(bMargin)}`:' — completely uncontested'}. That is the panic ceiling this room is capable of.`});
+  }
+
+  // 11. Overpay tax — money left on the table in contested wins
+  let tax=0, worst=null;
+  contested.forEach(a=>{
+    const second=Math.max(...a.bids.filter(b=>b!==a.winner).map(b=>b.bid));
+    const over=a.winner.bid-(second+1);
+    if(over>0){tax+=over; if(!worst||over>worst.over)worst={over,a,second};}
+  });
+  if(tax>=10&&worst){
+    items.push({tag:'Overpay tax', tagColor:'var(--red)', n:contested.length,
+      text:`Contested winners collectively paid <strong>${fmt(tax)}</strong> more than they needed to (vs 2nd bid + $1). Worst case: ${worst.a.winner.manager} paid ${fmt(worst.a.winner.bid)} for ${worst.a.name} when ${fmt(worst.second+1)} would have won (Wk ${worst.a.week}, ${worst.a.season}). Tight margins are free budget.`});
+  }
+
+  // 12. Late-season buyer's market — who still has money entering Wk 10
+  const wk10Rem=[];
+  [APP.stats,APP.stats2024].forEach(st=>{
+    Object.values(ROSTER_MAP).forEach(n=>{
+      const s=st[n]; if(!s)return;
+      let r=BUDGET; for(let w=1;w<=10;w++)r-=(s.weekSpend?.[w]||0);
+      wk10Rem.push(r);
+    });
+  });
+  if(wk10Rem.length>=12){
+    const avgRem=Math.round(wk10Rem.reduce((a,b)=>a+b,0)/wk10Rem.length);
+    const brokeCt=wk10Rem.filter(r=>r<10).length;
+    items.push({tag:"Buyer's market", tagColor:'var(--purple)', n:wk10Rem.length,
+      text:`The league enters Wk 10 with an average <strong>${fmt(avgRem)}</strong> remaining — and ${brokeCt} of ${wk10Rem.length} manager-seasons were already under $10. Bank ~$30 past Wk 9 and the stretch-run wire is nearly uncontested.`});
+  }
+
+  // 13. Fight week — when auctions are most contested (by count, not dollars)
+  const fightByWeek={};
+  contested.forEach(a=>{fightByWeek[a.week]=(fightByWeek[a.week]||0)+1;});
+  const fw=Object.entries(fightByWeek).sort((a,b)=>b[1]-a[1])[0];
+  if(fw&&fw[1]>=4){
+    items.push({tag:'Fight week', tagColor:'var(--amber)', n:contested.length,
+      text:`Week <strong>${fw[0]}</strong> is fight week: ${fw[1]} contested auctions across two seasons, more than any other. Claims landing that week need a buffer — a week later, prices sag.`});
+  }
+
+  return items;
+}
+
+function renderLeagueIntel(){
+  const el=document.getElementById('league-intel-content');
+  if(!el)return;
+  const items=computeLeagueIntel();
+  if(!items.length){el.innerHTML=`<div style="color:var(--muted);font-size:11px">Not enough data yet.</div>`;return;}
+  el.innerHTML=items.map(it=>`
+    <div class="edge-card">
+      <div class="edge-body">
+        <div class="edge-top">
+          <span class="edge-tag" style="color:${it.tagColor}">${it.tag}</span>
+          ${it.n?`<span class="edge-n">n=${it.n}</span>`:''}
+        </div>
+        <div class="edge-text">${it.text}</div>
+      </div>
+    </div>`).join('');
+}
+
 // ── USABILITY HELPERS ─────────────────────────────────────────────────────────
 function searchPlayerAuctions(q){
   q=q.trim().toLowerCase();
@@ -2260,6 +2476,18 @@ function importNotes(){
     renderWarRoom(); fetchTrending();
   }catch(e){alert('Could not read that — make sure you pasted the exact text from "Copy notes".');}
 }
+
+function toggleTip(el,ev){
+  if(ev)ev.stopPropagation();
+  const existing=el.querySelector('.tip-pop');
+  document.querySelectorAll('.tip-pop').forEach(p=>p.remove());
+  if(existing)return;
+  const pop=document.createElement('div');
+  pop.className='tip-pop';
+  pop.textContent=el.dataset.tip;
+  el.appendChild(pop);
+}
+document.addEventListener('click',()=>document.querySelectorAll('.tip-pop').forEach(p=>p.remove()));
 
 function clearPlayerCache(){
   try{localStorage.removeItem('faab_players_v2');}catch(e){}
@@ -2928,7 +3156,7 @@ function median(arr){return pctile(arr,0.5);}
 
 // ── Contested record: auctions ENTERED vs WON (the real competitiveness stat) ─
 function computeContestedRecord(name, pos){
-  let entered=0, won=0; const lossMargins=[];
+  let entered=0, won=0, closest=null; const lossMargins=[], wonEx=[];
   [APP.weeklyData,APP.weeklyData2024].forEach(wd=>{
     Object.values(wd||{}).forEach(d=>{
       (d.players||[]).forEach(p=>{
@@ -2939,13 +3167,23 @@ function computeContestedRecord(name, pos){
         const winner=p.bids.find(b=>b.status==='complete');
         if(!winner)return;
         entered++;
-        if(winner.manager===name)won++;
-        else lossMargins.push(winner.bid-mine.bid);
+        if(winner.manager===name){
+          won++;
+          wonEx.push({player:p.name,bid:winner.bid});
+        } else {
+          const m=winner.bid-mine.bid;
+          lossMargins.push(m);
+          if(!closest||m<closest.margin)closest={player:p.name,margin:m,winBid:winner.bid};
+        }
       });
     });
   });
+  wonEx.sort((a,b)=>b.bid-a.bid);
   return{entered,won,rate:entered?Math.round(won/entered*100):null,
-    medLossMargin:lossMargins.length?median(lossMargins):null};
+    medLossMargin:lossMargins.length?median(lossMargins):null,
+    losses:lossMargins.length,
+    closeLosses:lossMargins.filter(m=>m<=3).length,
+    wonExamples:wonEx, closestLoss:closest};
 }
 
 // ── Beat price: the bid that historically clears 90% of their attempts ───────
@@ -2977,11 +3215,12 @@ function computePanicIndex(name){
     if(!res||!res[name])return;
     getBidAttempts(name,yr).filter(a=>a.bid>0).forEach(a=>{
       const prior=res[name][a.week-1];
-      if(prior==='L')afterLoss.push(a.bid);
-      else if(prior==='W')afterWin.push(a.bid);
+      if(prior==='L')afterLoss.push(a);
+      else if(prior==='W')afterWin.push(a);
     });
   });
-  const mL=median(afterLoss), mW=median(afterWin);
+  const biggestTilt=afterLoss.length?afterLoss.reduce((x,y)=>y.bid>x.bid?y:x):null;
+  const mL=median(afterLoss.map(a=>a.bid)), mW=median(afterWin.map(a=>a.bid));
   const enoughData=afterLoss.length>=4&&afterWin.length>=4;
   // Real signal requires: enough samples, a $4+ absolute jump, AND a 1.5x+ ratio
   const isPanicBidder=enoughData&&(mL-mW)>=4&&(mW===0?mL>=5:mL/mW>=1.5);
@@ -2989,6 +3228,7 @@ function computePanicIndex(name){
   return{medAfterLoss:mL,medAfterWin:mW,
     nAfterLoss:afterLoss.length,nAfterWin:afterWin.length,
     multiplier:mW>0?Math.round(mL/mW*10)/10:null,
+    example:biggestTilt,
     isPanicBidder,isIceCold};
 }
 
@@ -3033,7 +3273,10 @@ function computeNumerology(name){
   if(bids.length<8)return{pctRound:null,n:bids.length,vsLeague:null};
   const pct=Math.round(bids.filter(b=>b%5===0).length/bids.length*100);
   const base=leagueRoundRate();
-  return{pctRound:pct,n:bids.length,vsLeague:base!==null?pct-base:null,
+  const counts={};
+  bids.forEach(b=>{counts[b]=(counts[b]||0)+1;});
+  const favs=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,2).map(([v])=>parseInt(v));
+  return{pctRound:pct,n:bids.length,vsLeague:base!==null?pct-base:null,favs,
     isRoundBidder:pct>=70&&base!==null&&pct-base>=10};
 }
 
@@ -3159,11 +3402,44 @@ function generateIntelBrief(name){
   return parts.join(' ');
 }
 
+// ── Head-to-head vs YOU: contested auctions a manager has taken off your board ─
+function computeVsYou(name){
+  const items=[];
+  [[APP.weeklyData,2025],[APP.weeklyData2024,2024]].forEach(([wd,season])=>{
+    Object.entries(wd||{}).forEach(([wStr,d])=>{
+      (d.players||[]).forEach(p=>{
+        if(p.bids.length<2)return;
+        const you=p.bids.find(b=>b.manager===YOU);
+        const winner=p.bids.find(b=>b.status==='complete');
+        if(!you||!winner||winner.manager!==name||you.status==='complete')return;
+        items.push({player:p.name,week:parseInt(wStr),season,winBid:winner.bid,yourBid:you.bid,margin:winner.bid-you.bid});
+      });
+    });
+  });
+  if(!items.length)return{beats:0,medMargin:null,flip:null,examples:[]};
+  items.sort((a,b)=>b.winBid-a.winBid);
+  return{beats:items.length,
+    medMargin:median(items.map(i=>i.margin)),
+    flip:median(items.map(i=>i.winBid))+1,
+    examples:items};
+}
+
 // ── EDGES: ranked exploitable findings — every edge states the action ─────────
 function buildEdges(){
   const managers=Object.values(ROSTER_MAP).filter(m=>m!==YOU);
   const edges=[];
   const mp=computeMarketPrice();
+
+  // A thorn is a STANDOUT rival, not anyone with a few wins — your losses
+  // necessarily spread across the league, so the bar must be relative:
+  // top 2 by head-to-head wins, minimum 4, and 15%+ of all your contested losses.
+  const vsAll=managers.map(n=>({name:n,...computeVsYou(n)}));
+  const totalH2HLosses=vsAll.reduce((s,v)=>s+v.beats,0);
+  const thornNames=new Set(
+    [...vsAll].sort((a,b)=>b.beats-a.beats).slice(0,2)
+      .filter(v=>v.beats>=4&&totalH2HLosses>0&&v.beats/totalH2HLosses>=0.15)
+      .map(v=>v.name)
+  );
 
   managers.forEach(name=>{
     const cr=computeContestedRecord(name);
@@ -3177,7 +3453,7 @@ function buildEdges(){
     // Desperation — hardened, medians
     if(panic.isPanicBidder){
       edges.push({name, score:90, n:panic.nAfterLoss+panic.nAfterWin,
-        text:`Median bid after a loss: ${fmt(panic.medAfterLoss)} vs ${fmt(panic.medAfterWin)} after a win. Action: don't contest them the week after they lose — they overpay. Do contest when they're coming off a win.`,
+        text:`Median bid after a loss: ${fmt(panic.medAfterLoss)} vs ${fmt(panic.medAfterWin)} after a win.${panic.example?` Biggest tilt bid: ${fmt(panic.example.bid)} on ${panic.example.player} (Wk ${panic.example.week}) coming off an L.`:''} Action: never contest them the week after they lose — let them torch budget. Pick your fights when they're coming off a win.`,
         tag:'Desperation', tagColor:'var(--amber)'});
     }
 
@@ -3197,7 +3473,7 @@ function buildEdges(){
     }
     if(timing.saver){
       edges.push({name, score:72, n:2,
-        text:`Used only ${timing.s25}% / ${timing.s24}% of budget by Week 6 across two seasons. Action: they are the live threat in every late auction — check their balance before any Wk 10+ bid.`,
+        text:`Used only ${timing.s25}% / ${timing.s24}% of budget by Week 6 across two seasons${lateCeil.hadMoney>=20?`, entering Wk 11 with up to ${fmt(lateCeil.hadMoney)} in hand`:''}. Action: they are the live threat in every late auction — check their balance before any Wk 10+ bid and expect to pay full price.`,
         tag:'Saver', tagColor:'var(--blue)'});
     }
 
@@ -3215,10 +3491,64 @@ function buildEdges(){
         tag:'Closer', tagColor:'var(--red)'});
     }
 
+    // Personal thorn — only standout rivals qualify
+    if(thornNames.has(name)){
+      const vs=vsAll.find(v=>v.name===name);
+      const sharePct=Math.round(vs.beats/totalH2HLosses*100);
+      const ex=vs.examples.slice(0,2).map(e=>`${e.player} (${fmt(e.winBid)} vs your ${fmt(e.yourBid)}, Wk ${e.week} ${e.season})`).join(', ');
+      const advice=vs.medMargin<=3
+        ?`you're losing these by pocket change (median margin ${fmt(vs.medMargin)}) — stop shaving the last dollar; ${fmt(vs.flip)} flips half of them`
+        :vs.medMargin>=8
+        ?`when they want a player they bury you (median +${fmt(vs.medMargin)}) — either come in at ${fmt(vs.flip)} or stay out; half-stepping just sets their market`
+        :`${fmt(vs.flip)} would have flipped half of these — make that your opening number against them, not your gut`;
+      edges.push({name, score:88, n:vs.beats,
+        text:`Your biggest wire rival: ${vs.beats} head-to-head wins over you — ${sharePct}% of all your contested losses${ex?`, including ${ex}`:''}. Action: ${advice}.`,
+        tag:'Your thorn', tagColor:'var(--red)'});
+    }
+
+    // Position bully — dominates contested auctions at a specific position
+    ['RB','WR','TE'].forEach(pos=>{
+      const crp=computeContestedRecord(name,pos);
+      if(crp.entered>=4&&crp.rate!==null&&crp.rate>=65){
+        const bpp=computeBeatPrice(name,pos);
+        const takes=(crp.wonExamples||[]).slice(0,2).map(w=>`${w.player} (${fmt(w.bid)})`).join(', ');
+        edges.push({name, score:75, n:crp.entered,
+          text:`Wins ${crp.rate}% of contested ${pos} auctions (n=${crp.entered})${takes?` — took ${takes}`:''}.${bpp.price?` Their 90% beat price at ${pos}: ${fmt(bpp.price)}.`:''} Action: at ${pos} it's ${bpp.price?fmt(bpp.price):'full freight'} or pass — middling bids just fund their win.`,
+          tag:pos+' bully', tagColor:posColor(pos)});
+      }
+    });
+
+    // Chronic underbidder — keeps losing close
+    if(cr.entered>=6&&cr.losses>=4&&cr.closeLosses/cr.losses>=0.6){
+      edges.push({name, score:64, n:cr.losses,
+        text:`${cr.closeLosses} of their ${cr.losses} contested losses were within $3 of winning${cr.closestLoss?` — closest sting: missed ${cr.closestLoss.player} by ${fmt(cr.closestLoss.margin)}`:''}. Action: they show up but always a dollar short — a $2-3 premium over your read of them survives most fights.`,
+        tag:'Underbidder', tagColor:'var(--blue)'});
+    }
+
+    // Priority leaner — hoards budget, adds via $0 claims
+    const allAdds=[...((APP.stats[name]||{}).bids||[]),...((APP.stats2024[name]||{}).bids||[])];
+    const zeroAdds=allAdds.filter(b=>b.bid===0).length;
+    if(allAdds.length>=8&&zeroAdds/allAdds.length>=0.5){
+      edges.push({name, score:52, n:allAdds.length,
+        text:`${Math.round(zeroAdds/allAdds.length*100)}% of their adds are $0 priority claims. Action: they hoard FAAB but rarely fight — a single real dollar clears them on almost anything.`,
+        tag:'Priority leaner', tagColor:'var(--muted2)'});
+    }
+
+    // Position obsession — most of their money goes one place
+    const posSpendAll={};
+    [(APP.stats[name]||{}).posSpend||{},(APP.stats2024[name]||{}).posSpend||{}].forEach(ps=>Object.entries(ps).forEach(([p,v])=>{posSpendAll[p]=(posSpendAll[p]||0)+v;}));
+    const totalAll=Object.values(posSpendAll).reduce((s,v)=>s+v,0);
+    const topPosAll=Object.entries(posSpendAll).sort((a,b)=>b[1]-a[1])[0];
+    if(totalAll>=40&&topPosAll&&topPosAll[1]/totalAll>=0.6){
+      edges.push({name, score:58, n:totalAll,
+        text:`${Math.round(topPosAll[1]/totalAll*100)}% of every FAAB dollar they've spent goes to ${topPosAll[0]} (${fmt(topPosAll[1])} of ${fmt(totalAll)}). Action: assume they're in every ${topPosAll[0]} auction — and discount them everywhere else.`,
+        tag:topPosAll[0]+' obsessed', tagColor:posColor(topPosAll[0])});
+    }
+
     // Round-number bias — vs league base rate
     if(numer.isRoundBidder){
       edges.push({name, score:62, n:numer.n,
-        text:`${numer.pctRound}% of their $5+ bids land on multiples of 5 (${numer.vsLeague>0?'+':''}${numer.vsLeague} pts vs league norm). Action: bid $X+1 against their likely $X — wins the exact-tie auctions for one dollar.`,
+        text:`${numer.pctRound}% of their $5+ bids land on multiples of 5 (${numer.vsLeague>0?'+':''}${numer.vsLeague} pts above league norm)${numer.favs&&numer.favs.length?` — lives on ${numer.favs.map(v=>'$'+v).join(' and ')}`:''}. Action: ${numer.favs&&numer.favs.length?numer.favs.map(v=>'$'+(v+1)).join(' and ')+' beat their favorite numbers':'bid $X+1 against their likely $X'} for one extra dollar.`,
         tag:'Numerology', tagColor:'var(--blue)'});
     }
 
@@ -3241,16 +3571,6 @@ function buildEdges(){
           tag:pos+' ceiling', tagColor:posColor(pos)});
       }
     });
-  });
-
-  // League-level market timing
-  ['RB','WR'].forEach(pos=>{
-    const m=mp[pos];
-    if(m&&m.late.n>=4&&m.early.n>=4&&m.early.avg>m.late.avg*1.8){
-      edges.push({name:'League-wide', score:58, n:m.early.n+m.late.n,
-        text:`${pos} market crashes late: avg winning bid falls from ${fmt(m.early.avg)} (Wks 1-6) to ${fmt(m.late.avg)} (Wks 13+). Action: pay up early only for league-winners; depth pieces come ${Math.round((1-m.late.avg/Math.max(m.early.avg,1))*100)}% cheaper after Wk 12.`,
-        tag:'Market timing', tagColor:'var(--lime)'});
-    }
   });
 
   return edges.sort((a,b)=>b.score-a.score);
