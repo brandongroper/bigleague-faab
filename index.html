@@ -1,4 +1,5 @@
 
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -170,6 +171,8 @@ h1 em{color:var(--lime);font-style:normal}
 .filter-btn{font-size:10px;padding:3px 10px;border-radius:5px;border:.5px solid var(--b1);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s}
 .filter-btn:hover{color:var(--text)}
 .filter-btn.active{background:var(--s2);color:var(--text);border-color:var(--b2)}
+.trend-calc-btn{width:100%;margin-top:8px;font-size:10px;padding:5px 8px;border-radius:5px;border:.5px solid rgba(200,241,53,.3);background:rgba(200,241,53,.06);color:var(--lime);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s}
+.trend-calc-btn:hover{background:rgba(200,241,53,.14);border-color:var(--lime)}
 
 .overbid-wrap{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.25rem;margin-bottom:.5rem}
 .overbid-table{width:100%}
@@ -327,6 +330,12 @@ h1 em{color:var(--lime);font-style:normal}
 .pos-outlier{font-size:10px;background:rgba(251,191,36,.08);border:.5px solid rgba(251,191,36,.2);border-radius:4px;padding:4px 8px;margin-top:6px;color:var(--amber);line-height:1.5}
 .pos-range-bar{height:4px;background:var(--s2);border-radius:2px;overflow:hidden;margin:4px 0;position:relative}
 .pos-range-fill{height:100%;border-radius:2px;position:absolute;top:0}
+.pos-claims-toggle{width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px;padding:6px 8px;border-radius:5px;border:.5px solid var(--b1);background:var(--s2);color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;font-size:10px;transition:all .12s}
+.pos-claims-toggle:hover{border-color:var(--b2);color:var(--text)}
+.pos-claims{margin-top:8px;background:var(--s2);border:.5px solid var(--b1);border-radius:6px;padding:6px 8px}
+.pos-claim-row{display:grid;grid-template-columns:64px 1fr 44px 52px;gap:6px;align-items:center;padding:4px 0;border-bottom:.5px solid var(--b1);font-size:11px}
+.pos-claim-row:last-child{border-bottom:none}
+.pos-claim-hdr{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:.5px solid var(--b2)}
 
 /* Rivalry matrix */
 .rivalry-matrix{overflow-x:auto;margin-bottom:1.5rem}
@@ -428,9 +437,19 @@ h1 em{color:var(--lime);font-style:normal}
       <div id="week-filters" style="display:none">
         <div class="filter-row">
           <span class="filter-lbl">Show:</span>
-          <button class="filter-btn active" onclick="setFilter('all',this)">All bids</button>
-          <button class="filter-btn" onclick="setFilter('won',this)">Won only</button>
-          <button class="filter-btn" onclick="setFilter('contested',this)">Contested only</button>
+          <button class="filter-btn wk-show-btn active" onclick="setFilter('all',this)">All bids</button>
+          <button class="filter-btn wk-show-btn" onclick="setFilter('won',this)">Won only</button>
+          <button class="filter-btn wk-show-btn" onclick="setFilter('contested',this)">Contested only</button>
+        </div>
+        <div class="filter-row">
+          <span class="filter-lbl">Position:</span>
+          <button class="filter-btn wk-pos-btn active" onclick="setWeekPosFilter('all',this)">All</button>
+          <button class="filter-btn wk-pos-btn" onclick="setWeekPosFilter('RB',this)">RB</button>
+          <button class="filter-btn wk-pos-btn" onclick="setWeekPosFilter('WR',this)">WR</button>
+          <button class="filter-btn wk-pos-btn" onclick="setWeekPosFilter('QB',this)">QB</button>
+          <button class="filter-btn wk-pos-btn" onclick="setWeekPosFilter('TE',this)">TE</button>
+          <button class="filter-btn wk-pos-btn" onclick="setWeekPosFilter('DEF',this)">DEF</button>
+          <button class="filter-btn wk-pos-btn" onclick="setWeekPosFilter('K',this)">K</button>
         </div>
       </div>
       <div id="week-summary" class="week-summary"></div>
@@ -474,6 +493,7 @@ let APP={stats:{},weeklyData:{},posTotals:{},weekTotals:{},sorted:[],playerMap:{
          stats2024:{},weeklyData2024:{},weekTotals2024:{},posTotals2024:{},
          results:{},results2024:{}};
 let currentFilter='all';
+let currentPosFilter='all';
 
 function setMsg(t){const e=document.getElementById('load-msg');if(e)e.textContent=t;}
 function setProg(p){const e=document.getElementById('prog');if(e)e.style.width=p+'%';}
@@ -727,9 +747,17 @@ function routeFromHash(){
 
 function setFilter(f,btn){
   currentFilter=f;
-  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.wk-show-btn').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
   // re-render current week
+  const activeBtn=document.querySelector('.week-btn.active');
+  if(activeBtn)renderWeek(parseInt(activeBtn.dataset.week));
+}
+
+function setWeekPosFilter(p,btn){
+  currentPosFilter=p;
+  document.querySelectorAll('.wk-pos-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
   const activeBtn=document.querySelector('.week-btn.active');
   if(activeBtn)renderWeek(parseInt(activeBtn.dataset.week));
 }
@@ -755,13 +783,30 @@ function renderWeek(week){
 
   document.getElementById('week-filters').style.display='flex';
 
-  // Filter players
+  // Filter players by status, then by position
   let players=allPlayers;
-  if(currentFilter==='won') players=allPlayers.filter(p=>p.bids.some(b=>b.status==='complete'));
-  if(currentFilter==='contested') players=allPlayers.filter(p=>p.bids.length>1);
+  if(currentFilter==='won') players=players.filter(p=>p.bids.some(b=>b.status==='complete'));
+  if(currentFilter==='contested') players=players.filter(p=>p.bids.length>1);
+  if(currentPosFilter!=='all') players=players.filter(p=>p.pos===currentPosFilter);
+
+  // Position-scoped summary line — total $ and bids at this position this week
+  if(currentPosFilter!=='all'){
+    const posWon=players.flatMap(p=>p.bids.filter(b=>b.status==='complete'));
+    const posBids=players.flatMap(p=>p.bids);
+    const posSpend=posWon.reduce((s,b)=>s+b.bid,0);
+    const posContested=players.filter(p=>p.bids.length>1).length;
+    const topAtPos=posBids.length?Math.max(...posBids.map(b=>b.bid)):0;
+    document.getElementById('week-summary').innerHTML=`
+      <div class="sum-card"><div class="sum-val" style="color:${posColor(currentPosFilter)}">${fmt(posSpend)}</div><div class="sum-lbl">Week ${week} ${currentPosFilter} spend</div></div>
+      <div class="sum-card"><div class="sum-val">${posWon.length}</div><div class="sum-lbl">${currentPosFilter}s added</div></div>
+      <div class="sum-card"><div class="sum-val">${posBids.length}</div><div class="sum-lbl">${currentPosFilter} bids placed</div></div>
+      <div class="sum-card"><div class="sum-val">${posContested}</div><div class="sum-lbl">Contested ${currentPosFilter}s</div></div>
+      <div class="sum-card"><div class="sum-val">${fmt(topAtPos)}</div><div class="sum-lbl">Top ${currentPosFilter} bid</div></div>`;
+  }
 
   if(!players.length){
-    document.getElementById('week-content').innerHTML=`<div style="font-size:12px;color:var(--muted);padding:1rem 0">No waiver activity in Week ${week}.</div>`;
+    const posTxt=currentPosFilter!=='all'?` at ${currentPosFilter}`:'';
+    document.getElementById('week-content').innerHTML=`<div style="font-size:12px;color:var(--muted);padding:1rem 0">No${currentFilter==='contested'?' contested':currentFilter==='won'?' won':''} waiver activity${posTxt} in Week ${week}.</div>`;
     return;
   }
 
@@ -1405,7 +1450,7 @@ let _bsState={
 };
 
 // Bid calculator state
-let _bcState={pos:'RB', competitors:new Set()};
+let _bcState={pos:'RB', competitors:new Set(), target:null};
 
 function calcBidRecommendation(pos, competitors){
   const results=[];
@@ -1914,6 +1959,8 @@ function toggleBcMgr(name){
 function updateBidCalc(){
   const posEl=document.getElementById('bc-pos');
   if(posEl) _bcState.pos=posEl.value;
+  // If a target was loaded for a different position, it no longer applies
+  if(_bcState.target && _bcState.target.pos!==_bcState.pos) _bcState.target=null;
   const result=document.getElementById('bc-result');
   if(!result)return;
 
@@ -1927,6 +1974,17 @@ function updateBidCalc(){
 
   const calc=calcBidRecommendation(_bcState.pos,[..._bcState.competitors]);
   if(!calc){result.innerHTML='';return;}
+
+  // Optional target player banner (set from the Trending widget)
+  const targetBanner=(_bcState.target && _bcState.target.pos===_bcState.pos)?`
+    <div style="display:flex;align-items:center;gap:8px;background:rgba(200,241,53,.08);border:.5px solid rgba(200,241,53,.3);border-radius:8px;padding:7px 11px;margin-bottom:10px">
+      <span style="font-size:14px">🎯</span>
+      <div style="flex:1">
+        <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Bidding on</div>
+        <div style="font-size:13px;font-weight:500;color:var(--lime)"><span class="bid-pos-cell" style="color:${posColor(_bcState.target.pos)}">${_bcState.target.pos}</span> ${_bcState.target.name}</div>
+      </div>
+      <button onclick="clearBidCalcTarget()" style="font-size:9px;padding:3px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">Clear</button>
+    </div>`:'';
 
   const {results,recommended,safeFloor,hasSpike}=calc;
   // Headline = the empirical value bid (clears 90% of their bid history).
@@ -1942,6 +2000,7 @@ function updateBidCalc(){
   const mktWarn=mktRef!==null&&headline>=mktRef*2&&(headline-mktRef)>=6;
 
   result.innerHTML=`
+    ${targetBanner}
     <div class="bc-result">
       <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:8px">
         <div>
@@ -2140,6 +2199,48 @@ function refreshTrending(){
   });
 }
 
+function addTrendingToBidCalc(pid, name, pos){
+  // Position must be one the calculator supports; fall back to RB
+  const validPos=['RB','WR','QB','TE','DEF','K'];
+  const usePos=validPos.includes(pos)?pos:'RB';
+  _bcState.pos=usePos;
+  _bcState.target={pid, name, pos:usePos};
+
+  // Pre-select competitors who have actually bid this position before — the real threats.
+  // If none have history here, select everyone so the calc still returns guidance.
+  const managers=Object.values(ROSTER_MAP).filter(m=>m!==YOU);
+  const threats=managers.filter(m=>{
+    const intel=buildPositionIntel(m,'all')[usePos];
+    return intel && !intel.empty && intel.allBids && intel.allBids.length>0;
+  });
+  _bcState.competitors=new Set(threats.length?threats:managers);
+
+  // Sync the UI: position dropdown + competitor chips
+  const posEl=document.getElementById('bc-pos');
+  if(posEl) posEl.value=usePos;
+  document.querySelectorAll('.bc-mgr-check').forEach(el=>{
+    const m=el.id.replace('bccheck-','');
+    el.classList.toggle('selected', _bcState.competitors.has(m));
+  });
+
+  updateBidCalc();
+
+  // Bring the calculator into view and flag it briefly so the jump is obvious
+  const panel=document.getElementById('bc-result');
+  const calcCard=panel?panel.closest('.wr-panel'):null;
+  if(calcCard){
+    calcCard.scrollIntoView({behavior:'smooth',block:'start'});
+    calcCard.style.transition='box-shadow .3s';
+    calcCard.style.boxShadow='0 0 0 2px var(--lime)';
+    setTimeout(()=>{calcCard.style.boxShadow='';},1100);
+  }
+}
+
+function clearBidCalcTarget(){
+  _bcState.target=null;
+  updateBidCalc();
+}
+
 function renderTrending(){
   const el=document.getElementById('trending-content');
   if(!el) return;
@@ -2184,6 +2285,8 @@ function renderTrending(){
 
         const barW=Math.round(p.count/maxCount*100);
         const posC=posColor(p.pos);
+        const canCalc=['RB','WR','QB','TE','DEF','K'].includes(p.pos);
+        const safeName=(p.name||'').replace(/'/g,"\\'");
 
         return`<div style="background:var(--s2);border:.5px solid var(--b1);border-radius:10px;padding:.85rem 1rem">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
@@ -2209,6 +2312,7 @@ function renderTrending(){
               Not picked up in your league in 2024–2025
               ${isAdd?` · <span style="color:var(--green)">Potential waiver target</span>`:''}
             </div>`}
+          ${canCalc?`<button class="trend-calc-btn" onclick="addTrendingToBidCalc('${p.player_id}','${safeName}','${p.pos}')">🎯 Add to bid calculator</button>`:''}
         </div>`;
       }).join('')}
     </div>
@@ -2519,7 +2623,7 @@ function buildRivalryData(season){
         rivalry[winner.manager][loser.manager].totalBids++;
         rivalry[winner.manager][loser.manager].dollarWon+=winner.bid;
         rivalry[winner.manager][loser.manager].auctions.push({
-          player:p.name,pos:p.pos,week,
+          player:p.name,pos:p.pos,week,season,
           winnerBid:winner.bid,loserBid:loser.bid,
           margin:winner.bid-loser.bid,
           youWon:true
@@ -2528,7 +2632,7 @@ function buildRivalryData(season){
         rivalry[loser.manager][winner.manager].totalBids++;
         rivalry[loser.manager][winner.manager].dollarLost+=loser.bid;
         rivalry[loser.manager][winner.manager].auctions.push({
-          player:p.name,pos:p.pos,week,
+          player:p.name,pos:p.pos,week,season,
           winnerBid:winner.bid,loserBid:loser.bid,
           margin:winner.bid-loser.bid,
           youWon:false
@@ -2549,17 +2653,48 @@ function cellColor(won, lost){
   return'rgba(248,113,113,0.14)';
 }
 
-let _rivalryCurrent={season:2025,rivalry:null};
+let _rivalryCurrent={season:'all',rivalry:null};
+
+function mergeRivalry(rA, rB){
+  // Combines two rivalry objects (e.g. 2024 + 2025) into one all-time object
+  const managers=Object.values(ROSTER_MAP);
+  const out={};
+  managers.forEach(a=>{
+    out[a]={};
+    managers.forEach(b=>{
+      if(a===b)return;
+      const x=rA[a]?.[b]||{won:0,lost:0,totalBids:0,dollarWon:0,dollarLost:0,auctions:[]};
+      const y=rB[a]?.[b]||{won:0,lost:0,totalBids:0,dollarWon:0,dollarLost:0,auctions:[]};
+      out[a][b]={
+        won:x.won+y.won,
+        lost:x.lost+y.lost,
+        totalBids:x.totalBids+y.totalBids,
+        dollarWon:x.dollarWon+y.dollarWon,
+        dollarLost:x.dollarLost+y.dollarLost,
+        auctions:[...x.auctions,...y.auctions]
+      };
+    });
+  });
+  return out;
+}
+
+function rivalryFor(season){
+  if(season===2024)return _rivalryCurrent.rivalry2024;
+  if(season===2025)return _rivalryCurrent.rivalry;
+  return _rivalryCurrent.rivalryAll;
+}
 
 function renderRivals(){
   if(!_rivalryCurrent.rivalry){
     _rivalryCurrent.rivalry=buildRivalryData(2025);
     _rivalryCurrent.rivalry2024=buildRivalryData(2024);
+    _rivalryCurrent.rivalryAll=mergeRivalry(_rivalryCurrent.rivalry2024,_rivalryCurrent.rivalry);
   }
+  const season=_rivalryCurrent.currentSeason||'all';
+  const seasonLbl=season==='all'?'2024–25':season;
   const el=document.getElementById('rivals-content');
   const managers=Object.values(ROSTER_MAP);
-  const r=_rivalryCurrent.rivalry;
-  const r24=_rivalryCurrent.rivalry2024;
+  const r=rivalryFor(season);
 
   // Sort managers: winner first, you second, then by total contested bids desc
   const sorted=[...managers].sort((a,b)=>{
@@ -2584,20 +2719,26 @@ function renderRivals(){
   const bestRecord=myRivals.filter(m=>m.total>=3).sort((a,b)=>(b.won/Math.max(b.total,1))-(a.won/Math.max(a.total,1)))[0];
   const worstRecord=myRivals.filter(m=>m.total>=3).sort((a,b)=>(a.won/Math.max(a.total,1))-(b.won/Math.max(b.total,1)))[0];
 
+  const btnStyle=(active)=>active
+    ?'font-size:10px;padding:4px 12px;border-radius:5px;border:.5px solid var(--lime);background:var(--lime);color:#0d0d0f;cursor:pointer;font-family:\'DM Mono\',monospace;font-weight:500'
+    :'font-size:10px;padding:4px 12px;border-radius:5px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:\'DM Mono\',monospace';
+
   el.innerHTML=`
     <div class="sum-grid" style="margin-bottom:1.5rem">
-      <div class="sum-card"><div class="sum-val c-lime">${totalWon}</div><div class="sum-lbl">Contested wins (2025)</div><div class="sum-sub">vs ${totalLost} losses</div></div>
+      <div class="sum-card"><div class="sum-val c-lime">${totalWon}</div><div class="sum-lbl">Contested wins (${seasonLbl})</div><div class="sum-sub">vs ${totalLost} losses</div></div>
       <div class="sum-card"><div class="sum-val">${totalWon+totalLost>0?Math.round(totalWon/(totalWon+totalLost)*100):0}%</div><div class="sum-lbl">Overall win rate</div><div class="sum-sub">in contested auctions</div></div>
       <div class="sum-card"><div class="sum-val ${nameClass(biggestRival?.name)||''}">${biggestRival?.name||'—'}</div><div class="sum-lbl">Most contested against</div><div class="sum-sub">${biggestRival?.total||0} shared auctions</div></div>
       <div class="sum-card"><div class="sum-val c-green">${bestRecord?.name||'—'}</div><div class="sum-lbl">Best record against</div><div class="sum-sub" style="color:var(--green)">${bestRecord?bestRecord.won+'-'+bestRecord.lost:''}</div></div>
       <div class="sum-card"><div class="sum-val" style="color:var(--red)">${worstRecord?.name||'—'}</div><div class="sum-lbl">Worst record against</div><div class="sum-sub" style="color:var(--red)">${worstRecord?worstRecord.won+'-'+worstRecord.lost:''}</div></div>
     </div>
 
-    <div class="sec" style="margin-top:0">Season toggle</div>
-    <div style="display:flex;gap:6px;margin-bottom:1rem">
-      <button id="rivals-btn-2025" onclick="switchRivalsSeason(2025)" style="font-size:10px;padding:4px 12px;border-radius:5px;border:.5px solid var(--lime);background:var(--lime);color:#0d0d0f;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500">2025</button>
-      <button id="rivals-btn-2024" onclick="switchRivalsSeason(2024)" style="font-size:10px;padding:4px 12px;border-radius:5px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">2024</button>
+    <div class="sec" style="margin-top:0">Season</div>
+    <div style="display:flex;gap:6px;margin-bottom:6px">
+      <button id="rivals-btn-all" onclick="switchRivalsSeason('all')" style="${btnStyle(season==='all')}">All time</button>
+      <button id="rivals-btn-2025" onclick="switchRivalsSeason(2025)" style="${btnStyle(season===2025)}">2025</button>
+      <button id="rivals-btn-2024" onclick="switchRivalsSeason(2024)" style="${btnStyle(season===2024)}">2024</button>
     </div>
+    <p style="font-size:10px;color:var(--muted);margin-bottom:1rem">All-time combines both seasons — more contested auctions per matchup means a steadier read on who beats whom. Use single seasons to spot recent shifts.</p>
 
     <div class="sec">head-to-head matrix — click any cell to see auction detail</div>
     <p style="font-size:11px;color:var(--muted);margin-bottom:10px">Row = manager · Column = opponent · Cell shows W-L record in contested auctions · <span style="color:var(--green)">Green</span> = winning · <span style="color:var(--red)">Red</span> = losing</p>
@@ -2605,6 +2746,7 @@ function renderRivals(){
     <div id="rivalry-drill"></div>
   `;
 
+  _rivalryCurrent.currentSeason=season;
   renderRivalryMatrix(sorted, r);
 }
 
@@ -2647,30 +2789,17 @@ function renderRivalryMatrix(sorted, r){
 }
 
 function switchRivalsSeason(season){
-  const r=season===2024?_rivalryCurrent.rivalry2024:_rivalryCurrent.rivalry;
-  const managers=Object.values(ROSTER_MAP);
-  const sorted=[...managers].sort((a,b)=>{
-    if(a===WINNER)return -1;if(b===WINNER)return 1;
-    if(a===YOU)return -1;if(b===YOU)return 1;
-    return 0;
-  });
-  renderRivalryMatrix(sorted,r);
-  document.getElementById('rivalry-drill').innerHTML='';
-  ['2024','2025'].forEach(y=>{
-    const btn=document.getElementById('rivals-btn-'+y);
-    if(!btn)return;
-    if(parseInt(y)===season){btn.style.background='var(--lime)';btn.style.color='#0d0d0f';btn.style.borderColor='var(--lime)';btn.style.fontWeight='500';}
-    else{btn.style.background='transparent';btn.style.color='var(--muted2)';btn.style.borderColor='var(--b2)';btn.style.fontWeight='400';}
-  });
   _rivalryCurrent.currentSeason=season;
+  renderRivals();
 }
 
 function showRivalryDrill(rowMgr, colMgr){
-  const season=_rivalryCurrent.currentSeason||2025;
-  const r=season===2024?_rivalryCurrent.rivalry2024:_rivalryCurrent.rivalry;
+  const season=_rivalryCurrent.currentSeason||'all';
+  const seasonLbl=season==='all'?'2024–25':season;
+  const r=rivalryFor(season);
   const d=r[rowMgr]?.[colMgr];
   if(!d||!d.auctions.length){
-    document.getElementById('rivalry-drill').innerHTML=`<div class="rivalry-detail"><div style="font-size:11px;color:var(--muted)">No contested auctions between ${rowMgr} and ${colMgr} in ${season}.</div></div>`;
+    document.getElementById('rivalry-drill').innerHTML=`<div class="rivalry-detail"><div style="font-size:11px;color:var(--muted)">No contested auctions between ${rowMgr} and ${colMgr} in ${seasonLbl}.</div></div>`;
     return;
   }
 
@@ -2684,7 +2813,7 @@ function showRivalryDrill(rowMgr, colMgr){
         <span style="color:${nameClass(rowMgr)||'var(--text)'}">${rowMgr}</span>
         <span style="color:var(--muted)"> vs </span>
         <span style="color:${nameClass(colMgr)||'var(--text)'}">${colMgr}</span>
-        <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px">${season} · ${d.won}-${d.lost} record · ${d.totalBids} contested auctions</span>
+        <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px">${seasonLbl} · ${d.won}-${d.lost} record · ${d.totalBids} contested auctions</span>
       </div>
       ${(()=>{
         const losses=d.auctions.filter(a=>!a.youWon);
@@ -2707,7 +2836,7 @@ function showRivalryDrill(rowMgr, colMgr){
         const resultColor=a.youWon?'var(--green)':'var(--red)';
         const resultTxt=a.youWon?`✓ Won +${fmt(margin)}`:`✗ Lost -${fmt(margin)}`;
         return`<div class="rd-row">
-          <div style="color:var(--muted);font-size:10px">Wk ${a.week}</div>
+          <div style="color:var(--muted);font-size:10px">${season==='all'&&a.season?`'${String(a.season).slice(2)} `:''}Wk ${a.week}</div>
           <div class="bid-pos-cell" style="color:${posColor(a.pos)}">${a.pos}</div>
           <div style="color:var(--text)">${a.player}</div>
           <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:${resultColor}">${fmt(rowBid)}</div>
@@ -2852,6 +2981,7 @@ function renderPositionIntelligence(name, season){
   const positions = ['RB','WR','QB','TE','DEF','K'];
   const active = positions.filter(p => intel[p] && !intel[p].empty);
   const inactive = positions.filter(p => !intel[p] || intel[p].empty);
+  const uid=name.replace(/[^a-z0-9]/gi,'');
 
   if(!active.length) return `<div style="font-size:11px;color:var(--muted)">No bid data for ${season}.</div>`;
 
@@ -2861,6 +2991,7 @@ function renderPositionIntelligence(name, season){
         const d = intel[pos];
         const pc = posColor(pos);
         const maxForBar = Math.max(d.typicalMax, 1);
+        const claimsId=`claims-${uid}-${pos}-${season}`;
 
         return `<div class="pos-intel-card ${d.threatBg}">
           <div class="pos-intel-header">
@@ -2903,6 +3034,13 @@ function renderPositionIntelligence(name, season){
             <div class="pos-outlier">
               ⚠ Outlier bid${d.outliers.length>1?'s':''}: ${d.outliers.map(o=>`<strong>${fmt(o.bid)}</strong> on ${o.player} (Wk ${o.week}${!o.won?' — lost':' — won'})`).join(', ')} — excluded from typical range above.
             </div>` : ''}
+            <button class="pos-claims-toggle" id="${claimsId}-btn" onclick="togglePosClaims('${claimsId}')">
+              <span>View the ${d.allBids.length} bid${d.allBids.length!==1?'s':''} behind these numbers</span>
+              <span id="${claimsId}-caret">▸</span>
+            </button>
+            <div class="pos-claims" id="${claimsId}" style="display:none">
+              ${renderPosClaims(d, season)}
+            </div>
           </div>
         </div>`;
       }).join('')}
@@ -2911,6 +3049,41 @@ function renderPositionIntelligence(name, season){
     <div style="font-size:10px;color:var(--muted);margin-top:4px">
       No bids at: ${inactive.join(', ')} in ${season}.
     </div>` : ''}`;
+}
+
+function renderPosClaims(d, season){
+  // Itemized list of every bid (won + failed) that drives this card's stats.
+  // Newest first; outliers flagged so the user can see exactly what was excluded.
+  const rows=[...d.allBids].sort((a,b)=>{
+    if(season==='all' && a.season!==b.season) return (b.season||0)-(a.season||0);
+    return b.week-a.week;
+  });
+  const isOutlier=(b)=>d.outliers.some(o=>o===b);
+  return `
+    <div class="pos-claim-row pos-claim-hdr">
+      <div>${season==='all'?'Szn · Wk':'Week'}</div>
+      <div>Player</div>
+      <div style="text-align:right">Bid</div>
+      <div style="text-align:right">Result</div>
+    </div>
+    ${rows.map(b=>{
+      const out=isOutlier(b);
+      return `<div class="pos-claim-row">
+        <div style="color:var(--muted);font-size:10px">${season==='all'&&b.season?`'${String(b.season).slice(2)} `:''}Wk ${b.week}</div>
+        <div style="color:var(--text)">${b.player||'—'}${out?` <span style="color:var(--amber);font-size:9px">⚠ outlier</span>`:''}</div>
+        <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:${b.won?'var(--green)':'var(--red)'}">${fmt(b.bid)}</div>
+        <div style="text-align:right;font-size:10px;color:${b.won?'var(--green)':'var(--red)'}">${b.won?'✓ won':'✗ lost'}</div>
+      </div>`;
+    }).join('')}`;
+}
+
+function togglePosClaims(id){
+  const el=document.getElementById(id);
+  const caret=document.getElementById(id+'-caret');
+  if(!el)return;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'block';
+  if(caret)caret.textContent=open?'▸':'▾';
 }
 
 // ── BUDGET PACING CHART ───────────────────────────────────────────────────────
