@@ -245,6 +245,14 @@ h1 em{color:var(--lime);font-style:normal}
 .edge-text{font-size:11px;color:var(--muted2);line-height:1.6}
 .edge-text strong{color:var(--text)}
 .edge-low-n{opacity:.55}
+/* Clickable manager names → manager profile */
+.mgr-link{cursor:pointer;text-decoration:underline dotted transparent;text-underline-offset:3px;transition:text-decoration-color .12s}
+.mgr-link:hover{text-decoration-color:currentColor}
+/* War Room jump chips */
+.wr-jump-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem}
+.wr-jump{font-size:10px;padding:5px 11px;border-radius:14px;border:.5px solid var(--b2);background:var(--s1);color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s}
+.wr-jump:hover{border-color:var(--lime);color:var(--text)}
+.trend-ctx{font-size:9px;padding:2px 7px;border-radius:3px;border:.5px solid var(--b1);background:var(--s1);color:var(--muted2);white-space:nowrap}
 /* League Intel categories */
 .li-cat{border:.5px solid var(--b1);border-radius:10px;background:var(--s1);margin-bottom:6px;overflow:hidden}
 .li-cat-head{width:100%;display:flex;align-items:center;gap:8px;padding:.75rem 1rem;background:transparent;border:none;cursor:pointer;font-family:'DM Mono',monospace;text-align:left;transition:background .12s}
@@ -483,7 +491,7 @@ h1 em{color:var(--lime);font-style:normal}
 
     <div style="margin-top:3rem;padding-top:1rem;border-top:.5px solid var(--b1);font-size:10px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;align-items:center">
       <span>Data: 2024–2025 seasons · Sleeper API</span>
-      <span>Player names cached locally, refreshed weekly</span>
+      <span>Player data cached locally — daily in season, weekly otherwise</span>
       <span onclick="clearPlayerCache()" style="color:var(--muted2);cursor:pointer;text-decoration:underline;text-underline-offset:2px">Force refresh cache</span>
       <span style="margin-left:auto">Built for KGB</span>
     </div>
@@ -846,7 +854,7 @@ function renderWeek(week){
           const isWon=b.status==='complete';
           const isTie=!isWon&&b.bid===wonBid?.bid;
           return`<div class="auction-bid-row ${isWon?'won':''}">
-            <div class="bid-mgr ${b.manager===YOU?'you':''} ${isWon?nameClass(b.manager):''}">${b.manager}${b.manager===WINNER?' 🏆':b.manager===YOU?' ◀':''}</div>
+            <div class="bid-mgr mgr-link ${b.manager===YOU?'you':''} ${isWon?nameClass(b.manager):''}" onclick="event.stopPropagation();goToManager('${b.manager}')" title="View ${b.manager}'s profile">${b.manager}${b.manager===WINNER?' 🏆':b.manager===YOU?' ◀':''}</div>
             <div class="bid-drop-sm">${b.drop?'↓ '+b.drop:''}</div>
             <div class="bid-val ${bidColor(b.bid)}">${fmt(b.bid)}</div>
             <div><span class="bid-result-tag ${isWon?'tag-won':isTie?'tag-lost-tie':'tag-lost'}">${isWon?'✓ won':isTie?'tied — priority':'✗ lost'}</span></div>
@@ -898,7 +906,7 @@ function renderOverviewWeekDetail(week){
               const isWon=b.status==='complete';
               const isTie=!isWon&&b.bid===wonBid?.bid;
               return`<div class="auction-bid-row ${isWon?'won':''}">
-                <div class="bid-mgr ${b.manager===YOU?'you':''} ${isWon?nameClass(b.manager):''}">${b.manager}</div>
+                <div class="bid-mgr mgr-link ${b.manager===YOU?'you':''} ${isWon?nameClass(b.manager):''}" onclick="event.stopPropagation();goToManager('${b.manager}')" title="View ${b.manager}'s profile">${b.manager}</div>
                 <div class="bid-drop-sm">${b.drop?'↓ '+b.drop:''}</div>
                 <div class="bid-val ${bidColor(b.bid)}">${fmt(b.bid)}</div>
                 <div><span class="bid-result-tag ${isWon?'tag-won':isTie?'tag-lost-tie':'tag-lost'}">${isWon?'✓ won':isTie?'tied':'✗ lost'}</span></div>
@@ -1744,6 +1752,13 @@ function calcBudgetStrategy(){
   return{phases, insights, my25, my24, top4avg, top4names};
 }
 
+function wrJump(title){
+  // Scroll to a War Room panel by its title — no id bookkeeping needed
+  const t=[...document.querySelectorAll('.wr-panel-title')].find(el=>el.textContent===title);
+  const panel=t?t.closest('.wr-panel'):null;
+  if(panel)panel.scrollIntoView({behavior:'smooth',block:'start'});
+}
+
 function renderWarRoom(){
   const el=document.getElementById('warroom-content');
   if(!el)return;
@@ -1753,6 +1768,14 @@ function renderWarRoom(){
 
   el.innerHTML=`
     <div class="sec" style="margin-top:0">⚔ War Room — waiver strategy hub</div>
+    <div class="wr-jump-row">
+      <button class="wr-jump" onclick="wrJump('Bid Calculator')">🎯 Calculator</button>
+      <button class="wr-jump" onclick="wrJump('Budget Strategy')">💰 Budget</button>
+      <button class="wr-jump" onclick="wrJump('Trending on Sleeper')">📈 Trending</button>
+      <button class="wr-jump" onclick="wrJump('League Intel — how this league behaves')">🧠 Intel</button>
+      <button class="wr-jump" onclick="wrJump('Edges — exploitable tendencies')">⚡ Edges</button>
+      <button class="wr-jump" onclick="wrJump('Manager Scouting Notes')">📝 Notes</button>
+    </div>
 
     <div class="wr-grid">
       <!-- BID CALCULATOR -->
@@ -1834,13 +1857,20 @@ function renderWarRoom(){
         <button onclick="refreshTrending()" style="margin-left:auto;font-size:10px;padding:4px 10px;border-radius:5px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .15s" id="trending-refresh-btn">↻ Refresh</button>
       </div>
       <div class="wr-panel-body">
-        <div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px;margin-bottom:6px;flex-wrap:wrap">
           <button class="filter-btn active" id="trend-btn-add" onclick="setTrendFilter('add',this)">Most Added</button>
           <button class="filter-btn" id="trend-btn-drop" onclick="setTrendFilter('drop',this)">Most Dropped</button>
           <button class="filter-btn" id="trend-btn-RB" onclick="setTrendFilter('RB',this)">RB</button>
           <button class="filter-btn" id="trend-btn-WR" onclick="setTrendFilter('WR',this)">WR</button>
           <button class="filter-btn" id="trend-btn-QB" onclick="setTrendFilter('QB',this)">QB</button>
           <button class="filter-btn" id="trend-btn-TE" onclick="setTrendFilter('TE',this)">TE</button>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+          <span class="filter-lbl">Window:</span>
+          <button class="filter-btn trend-lb-btn ${_trendLookback===6?'active':''}" onclick="setTrendLookback(6,this)">6h</button>
+          <button class="filter-btn trend-lb-btn ${_trendLookback===24?'active':''}" onclick="setTrendLookback(24,this)">24h</button>
+          <button class="filter-btn trend-lb-btn ${_trendLookback===72?'active':''}" onclick="setTrendLookback(72,this)">3d</button>
+          <a href="https://sleeper.com/leagues/${LEAGUE}/players" target="_blank" rel="noopener" style="margin-left:auto;font-size:10px;color:var(--muted2);text-decoration:underline;text-underline-offset:2px">Open waivers on Sleeper ↗</a>
         </div>
         <div id="trending-content"><div style="color:var(--muted);font-size:11px">Loading trending players...</div></div>
       </div>
@@ -1983,15 +2013,20 @@ function updateBidCalc(){
   const calc=calcBidRecommendation(_bcState.pos,[..._bcState.competitors]);
   if(!calc){result.innerHTML='';return;}
 
-  // Optional target player banner (set from the Trending widget)
+  // Optional target player banner (set from the Trending widget or Player Search)
   const totalMgrs=Object.values(ROSTER_MAP).filter(m=>m!==YOU).length;
   const selCount=_bcState.competitors.size;
+  const tPm=_bcState.target?(APP.playerMap[_bcState.target.pid]||{}):{};
+  const tInjC=tPm.inj?(['Out','IR','PUP','Sus','COV','Doubtful'].includes(tPm.inj)?'var(--red)':'var(--amber)'):null;
   const targetBanner=(_bcState.target && _bcState.target.pos===_bcState.pos)?`
     <div style="display:flex;align-items:center;gap:8px;background:rgba(200,241,53,.08);border:.5px solid rgba(200,241,53,.3);border-radius:8px;padding:7px 11px;margin-bottom:10px">
       <span style="font-size:14px">🎯</span>
       <div style="flex:1">
         <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">Bidding on</div>
-        <div style="font-size:13px;font-weight:500;color:var(--lime)"><span class="bid-pos-cell" style="color:${posColor(_bcState.target.pos)}">${_bcState.target.pos}</span> ${_bcState.target.name}</div>
+        <div style="font-size:13px;font-weight:500;color:var(--lime);display:flex;align-items:center;gap:6px;flex-wrap:wrap"><span class="bid-pos-cell" style="color:${posColor(_bcState.target.pos)}">${_bcState.target.pos}</span> ${_bcState.target.name}
+          ${tPm.team?`<span class="trend-ctx">${tPm.team}</span>`:''}
+          ${tPm.inj?`<span class="trend-ctx" style="color:${tInjC};border-color:${tInjC}">${tPm.inj}</span>`:''}
+        </div>
         ${selCount<totalMgrs?`<div style="font-size:9px;color:var(--muted2);margin-top:2px">Pre-selected the ${selCount} biggest threat${selCount!==1?'s':''} at ${_bcState.target.pos} — tick more above if you expect others to bid.</div>`:''}
       </div>
       <button onclick="clearBidCalcTarget()" style="font-size:9px;padding:3px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">Clear</button>
@@ -2039,7 +2074,7 @@ function updateBidCalc(){
         ${results.map(r=>`
           <div class="bc-comp-row">
             <div>
-              <span style="color:${nameClass(r.name)||'var(--muted2)'}">${r.name}${r.name===WINNER?' 🏆':''}</span>
+              <span class="mgr-link" style="color:${nameClass(r.name)||'var(--muted2)'}" onclick="goToManager('${r.name}')" title="View ${r.name}'s profile">${r.name}${r.name===WINNER?' 🏆':''}</span>
               ${r.arch?`<div style="font-size:9px;color:var(--muted)">${r.arch}${r.trend&&r.trend!=='—'?' · '+r.trend:''}</div>`:''}
               ${r.habit?`<div style="font-size:9px;color:var(--muted2);margin-top:1px">Usually ${fmt(r.habit.usual)} at ${_bcState.pos} · gone ${fmt(r.habit.breakT)}+ ${r.habit.breaks}x (n=${r.habit.n})</div>`:''}
               ${r.beatPrice?`<div style="font-size:9px;color:var(--blue);margin-top:1px">${fmt(r.beatPrice)} clears 90% of their bids (n=${r.beatN})</div>`:''}
@@ -2171,23 +2206,58 @@ function saveManagerNote(name){
 let _trendingData={add:[],drop:[]};
 let _trendFilter='add';
 
+let _trendLookback=24; // hours: 6 | 24 | 72
+
+function setTrendLookback(h,btn){
+  _trendLookback=h;
+  document.querySelectorAll('.trend-lb-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  const el=document.getElementById('trending-content');
+  if(el)el.innerHTML=`<div style="color:var(--muted);font-size:11px">Loading…</div>`;
+  fetchTrending();
+}
+
+async function fetchProjections(){
+  // Weekly PPR projections from Sleeper's undocumented projections endpoint.
+  // In-season only; fails silently (feature simply doesn't render). Cached per week.
+  const st=APP.nflState;
+  if(!st||!['regular','post'].includes(st.season_type)||!st.week)return null;
+  const key=`${st.season}-${st.week}`;
+  if(APP._projCache?.key===key)return APP._projCache.map;
+  try{
+    const url=`https://api.sleeper.com/projections/nfl/${st.season}/${st.week}?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF&order_by=ppr`;
+    const rows=await fetchJ(url);
+    const map={};
+    (rows||[]).forEach(r=>{
+      const pts=r?.stats?.pts_ppr;
+      if(r?.player_id&&pts!==undefined&&pts!==null)map[r.player_id]=Math.round(pts*10)/10;
+    });
+    APP._projCache={key,map};
+    return map;
+  }catch(e){return null;}
+}
+
 async function fetchTrending(){
   try{
-    const [adds, drops] = await Promise.all([
-      fetchJ('https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=24&limit=25'),
-      fetchJ('https://api.sleeper.app/v1/players/nfl/trending/drop?lookback_hours=24&limit=25')
+    const [adds, drops, proj] = await Promise.all([
+      fetchJ(`https://api.sleeper.app/v1/players/nfl/trending/add?lookback_hours=${_trendLookback}&limit=25`),
+      fetchJ(`https://api.sleeper.app/v1/players/nfl/trending/drop?lookback_hours=${_trendLookback}&limit=25`),
+      fetchProjections()
     ]);
-    // Enrich with player data from APP.playerMap
-    _trendingData.add=adds.map(t=>({
-      ...t,
-      name: APP.playerMap[t.player_id]?.name||t.player_id,
-      pos: APP.playerMap[t.player_id]?.pos||'?'
-    }));
-    _trendingData.drop=drops.map(t=>({
-      ...t,
-      name: APP.playerMap[t.player_id]?.name||t.player_id,
-      pos: APP.playerMap[t.player_id]?.pos||'?'
-    }));
+    // Enrich with player data from APP.playerMap (v3: team/injury/depth-chart)
+    const enrich=t=>{
+      const pm=APP.playerMap[t.player_id]||{};
+      return {...t,
+        name: pm.name||t.player_id,
+        pos: pm.pos||'?',
+        team: pm.team||null,
+        inj: pm.inj||null,
+        dco: pm.dco||null,
+        proj: proj?proj[t.player_id]??null:null
+      };
+    };
+    _trendingData.add=adds.map(enrich);
+    _trendingData.drop=drops.map(enrich);
     renderTrending();
   }catch(e){
     const el=document.getElementById('trending-content');
@@ -2211,6 +2281,11 @@ function refreshTrending(){
 }
 
 function addTrendingToBidCalc(pid, name, pos){
+  // Callable from any tab (Trending, Player Search) — jump to War Room first so
+  // the calculator DOM exists and the user lands where the answer is.
+  const wrView=document.getElementById('view-warroom');
+  if(wrView && !wrView.classList.contains('active')) showView('warroom');
+
   // Position must be one the calculator supports; fall back to RB
   const validPos=['RB','WR','QB','TE','DEF','K'];
   const usePos=validPos.includes(pos)?pos:'RB';
@@ -2309,13 +2384,23 @@ function renderTrending(){
         const posC=posColor(p.pos);
         const canCalc=['RB','WR','QB','TE','DEF','K'].includes(p.pos);
         const safeName=(p.name||'').replace(/'/g,"\\'");
+        // Context tags from player cache v3 + projections (all optional — hide when absent)
+        const injC=p.inj?(['Out','IR','PUP','Sus','COV','Doubtful'].includes(p.inj)?'var(--red)':'var(--amber)'):null;
+        const roleTxt=p.dco?(p.dco===1?'1st on depth chart':p.dco===2?'2nd on depth chart':null):null;
+        const ctxTags=[
+          p.team?`<span class="trend-ctx">${p.team}</span>`:'',
+          p.inj?`<span class="trend-ctx" style="color:${injC};border-color:${injC}">${p.inj}</span>`:'',
+          roleTxt?`<span class="trend-ctx">${roleTxt}</span>`:'',
+          p.proj!==null&&p.proj!==undefined?`<span class="trend-ctx" style="color:var(--lime)">proj ${p.proj} PPR</span>`:''
+        ].filter(Boolean).join('');
 
         return`<div style="background:var(--s2);border:.5px solid var(--b1);border-radius:10px;padding:.85rem 1rem">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
-            <div style="display:flex;align-items:center;gap:8px">
+            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
               <span style="font-size:11px;color:var(--muted);width:18px">${i+1}</span>
               <span class="bid-pos-cell" style="color:${posC}">${p.pos}</span>
               <span style="font-size:13px;font-weight:500;color:var(--text)">${p.name}</span>
+              ${ctxTags}
             </div>
             <span style="font-size:11px;font-family:'Space Grotesk',sans-serif;font-weight:700;color:${isAdd?'var(--green)':'var(--red)'}">
               ${isAdd?'+':'−'}${p.count.toLocaleString()}
@@ -2326,7 +2411,7 @@ function renderTrending(){
           </div>
           ${allLeagueBids.length>0?`
             <div style="font-size:10px;color:var(--muted2);line-height:1.6">
-              ${whoWon?`<span style="color:${nameClass(whoWon)||'var(--muted2)'}">Rostered by ${whoWon}</span> in your league`:'Not in your league'}
+              ${whoWon?`Rostered by <span class="mgr-link" style="color:${nameClass(whoWon)||'var(--muted2)'}" onclick="goToManager('${whoWon}')" title="View ${whoWon}'s profile">${whoWon}</span> in your league`:'Not in your league'}
               ${topBid!==null?` · Top bid was <span style="color:var(--lime);font-weight:500">${fmt(topBid)}</span>`:''}
               ${wasContested?` · <span style="color:var(--amber)">Was contested</span>`:''}
             </div>`:`
@@ -2590,14 +2675,17 @@ function runPlayerSearch(){
   if(!res.length){box.innerHTML=`<div style="font-size:11px;color:var(--muted);padding:8px 0">No auctions found for "${q.replace(/[<>&]/g,'')}" in 2024–2025.</div>`;return;}
   box.innerHTML=res.map(({season,week,p})=>{
     const bids=[...p.bids].sort((a,b)=>b.bid-a.bid);
+    const canCalc=['RB','WR','QB','TE','DEF','K'].includes(p.pos);
+    const safeName=(p.name||'').replace(/'/g,"\\'");
     return`<div style="background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:.75rem 1rem;margin-bottom:6px">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
         <span class="bid-pos-cell" style="color:${posColor(p.pos)}">${p.pos}</span>
         <span style="font-weight:500;color:var(--text)">${p.name}</span>
         <span style="font-size:10px;color:var(--muted)">${season} · Wk ${week} · ${p.bids.length} bid${p.bids.length!==1?'s':''}</span>
+        ${canCalc?`<button class="trend-calc-btn" style="width:auto;margin:0 0 0 auto;padding:3px 9px" onclick="addTrendingToBidCalc('${p.pid}','${safeName}','${p.pos}')">🎯 Bid calc</button>`:''}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:5px">
-        ${bids.map(b=>`<span style="font-size:10px;padding:3px 9px;border-radius:4px;background:${b.status==='complete'?'rgba(200,241,53,.1)':'var(--s2)'};border:.5px solid ${b.status==='complete'?'rgba(200,241,53,.35)':'var(--b1)'};color:${b.status==='complete'?'var(--lime)':'var(--muted2)'}">${b.manager} ${fmt(b.bid)}${b.status==='complete'?' ✓':''}</span>`).join('')}
+        ${bids.map(b=>`<span class="mgr-link" onclick="goToManager('${b.manager}')" title="View ${b.manager}'s profile" style="font-size:10px;padding:3px 9px;border-radius:4px;background:${b.status==='complete'?'rgba(200,241,53,.1)':'var(--s2)'};border:.5px solid ${b.status==='complete'?'rgba(200,241,53,.35)':'var(--b1)'};color:${b.status==='complete'?'var(--lime)':'var(--muted2)'}">${b.manager} ${fmt(b.bid)}${b.status==='complete'?' ✓':''}</span>`).join('')}
       </div>
     </div>`;
   }).join('');
@@ -2650,7 +2738,7 @@ function toggleTip(el,ev){
 document.addEventListener('click',()=>document.querySelectorAll('.tip-pop').forEach(p=>p.remove()));
 
 function clearPlayerCache(){
-  try{localStorage.removeItem('faab_players_v2');}catch(e){}
+  try{localStorage.removeItem('faab_players_v3');}catch(e){}
   location.reload();
 }
 
@@ -2866,9 +2954,9 @@ function showRivalryDrill(rowMgr, colMgr){
   document.getElementById('rivalry-drill').innerHTML=`
     <div class="rivalry-detail">
       <div class="rivalry-detail-title">
-        <span style="color:${nameClass(rowMgr)||'var(--text)'}">${rowMgr}</span>
+        <span class="mgr-link" style="color:${nameClass(rowMgr)||'var(--text)'}" onclick="goToManager('${rowMgr}')" title="View ${rowMgr}'s profile">${rowMgr}</span>
         <span style="color:var(--muted)"> vs </span>
-        <span style="color:${nameClass(colMgr)||'var(--text)'}">${colMgr}</span>
+        <span class="mgr-link" style="color:${nameClass(colMgr)||'var(--text)'}" onclick="goToManager('${colMgr}')" title="View ${colMgr}'s profile">${colMgr}</span>
         <span style="font-size:11px;color:var(--muted);font-weight:400;margin-left:10px">${seasonLbl} · ${d.won}-${d.lost} record · ${d.totalBids} contested auctions</span>
       </div>
       ${(()=>{
@@ -3990,14 +4078,16 @@ async function main(){
   try{
     // Fetch 2025 rosters + transactions AND 2024 in parallel
     setMsg('Fetching rosters & transactions (2024 + 2025)...'); setProg(5);
-    const [rosters, rosters2024, weekResults, weekResults2024, matchups, matchups2024] = await Promise.all([
+    const [rosters, rosters2024, weekResults, weekResults2024, matchups, matchups2024, nflState] = await Promise.all([
       fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/rosters`),
       fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/rosters`),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/transactions/${i+1}`).catch(()=>[]))),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/transactions/${i+1}`).catch(()=>[]))),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/matchups/${i+1}`).catch(()=>[]))),
-      Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/matchups/${i+1}`).catch(()=>[])))
+      Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/matchups/${i+1}`).catch(()=>[]))),
+      fetchJ('https://api.sleeper.app/v1/state/nfl').catch(()=>null)
     ]);
+    APP.nflState=nflState; // {season, week, season_type: 'off'|'pre'|'regular'|'post'} or null
     setProg(50);
 
     // Compute weekly W/L per manager from matchups (group by matchup_id, higher points wins)
@@ -4021,10 +4111,13 @@ async function main(){
     });
 
     setMsg('Resolving player names...'); setProg(55);
-    // Player cache: slim {pid:{name,pos}} map of ALL players in localStorage.
-    // Skips the ~8MB fetch on repeat visits (refreshed weekly). Also covers
-    // trending players, which aren't in league transactions.
-    const CACHE_KEY='faab_players_v2', CACHE_TTL=7*24*3600*1000;
+    // Player cache v3: slim {pid:{name,pos,team,inj,dco}} map of ALL players in
+    // localStorage. team/inj (injury_status)/dco (depth_chart_order) power the
+    // trending & bid-calc context tags. TTL is 24h in-season so injury tags stay
+    // fresh, 7 days otherwise — skips the ~8MB fetch on repeat visits.
+    const inSeason=['regular','post'].includes(APP.nflState?.season_type);
+    const CACHE_KEY='faab_players_v3', CACHE_TTL=(inSeason?1:7)*24*3600*1000;
+    try{localStorage.removeItem('faab_players_v2');}catch(e){} // retire old key
     let playerMap={};
     let usedCache=false;
     try{
@@ -4042,7 +4135,11 @@ async function main(){
           if(!p)return;
           const pos=p.fantasy_positions?.[0]||p.position;
           if(!pos)return; // skip non-fantasy entries to keep cache slim
-          playerMap[pid]={name:p.full_name||((p.first_name||'')+' '+(p.last_name||'')).trim()||pid,pos};
+          const entry={name:p.full_name||((p.first_name||'')+' '+(p.last_name||'')).trim()||pid,pos};
+          if(p.team)entry.team=p.team;
+          if(p.injury_status)entry.inj=p.injury_status;
+          if(p.depth_chart_order)entry.dco=p.depth_chart_order;
+          playerMap[pid]=entry;
         });
         try{localStorage.setItem(CACHE_KEY,JSON.stringify({ts:Date.now(),map:playerMap}));}catch(e){/* quota — run uncached */}
       }catch(e){neededPids.forEach(pid=>{playerMap[pid]={name:pid,pos:'?'};});}
