@@ -2227,9 +2227,10 @@ async function fetchProjections(){
   try{
     const url=`https://api.sleeper.com/projections/nfl/${st.season}/${st.week}?season_type=regular&position[]=QB&position[]=RB&position[]=WR&position[]=TE&position[]=K&position[]=DEF&order_by=ppr`;
     const rows=await fetchJ(url);
+    const statKey=APP.projStat||'pts_half_ppr'; // league-aware: this league scores 0.5 PPR
     const map={};
     (rows||[]).forEach(r=>{
-      const pts=r?.stats?.pts_ppr;
+      const pts=r?.stats?.[statKey];
       if(r?.player_id&&pts!==undefined&&pts!==null)map[r.player_id]=Math.round(pts*10)/10;
     });
     APP._projCache={key,map};
@@ -2391,7 +2392,7 @@ function renderTrending(){
           p.team?`<span class="trend-ctx">${p.team}</span>`:'',
           p.inj?`<span class="trend-ctx" style="color:${injC};border-color:${injC}">${p.inj}</span>`:'',
           roleTxt?`<span class="trend-ctx">${roleTxt}</span>`:'',
-          p.proj!==null&&p.proj!==undefined?`<span class="trend-ctx" style="color:var(--lime)">proj ${p.proj} PPR</span>`:''
+          p.proj!==null&&p.proj!==undefined?`<span class="trend-ctx" style="color:var(--lime)">proj ${p.proj} ${APP.projLabel||'½PPR'}</span>`:''
         ].filter(Boolean).join('');
 
         return`<div style="background:var(--s2);border:.5px solid var(--b1);border-radius:10px;padding:.85rem 1rem">
@@ -4078,16 +4079,22 @@ async function main(){
   try{
     // Fetch 2025 rosters + transactions AND 2024 in parallel
     setMsg('Fetching rosters & transactions (2024 + 2025)...'); setProg(5);
-    const [rosters, rosters2024, weekResults, weekResults2024, matchups, matchups2024, nflState] = await Promise.all([
+    const [rosters, rosters2024, weekResults, weekResults2024, matchups, matchups2024, nflState, leagueObj] = await Promise.all([
       fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/rosters`),
       fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/rosters`),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/transactions/${i+1}`).catch(()=>[]))),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/transactions/${i+1}`).catch(()=>[]))),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/matchups/${i+1}`).catch(()=>[]))),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/matchups/${i+1}`).catch(()=>[]))),
-      fetchJ('https://api.sleeper.app/v1/state/nfl').catch(()=>null)
+      fetchJ('https://api.sleeper.app/v1/state/nfl').catch(()=>null),
+      fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}`).catch(()=>null)
     ]);
     APP.nflState=nflState; // {season, week, season_type: 'off'|'pre'|'regular'|'post'} or null
+    // League scoring → which projection stat to use. This league is 0.5 PPR;
+    // read it from Sleeper so the tool stays correct if settings ever change.
+    const rec=leagueObj?.scoring_settings?.rec ?? 0.5;
+    APP.projStat = rec>=1 ? 'pts_ppr' : rec>=0.5 ? 'pts_half_ppr' : 'pts_std';
+    APP.projLabel = rec>=1 ? 'PPR' : rec>=0.5 ? '½PPR' : 'std';
     setProg(50);
 
     // Compute weekly W/L per manager from matchups (group by matchup_id, higher points wins)
