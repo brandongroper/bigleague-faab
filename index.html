@@ -253,6 +253,14 @@ h1 em{color:var(--lime);font-style:normal}
 .wr-jump{font-size:10px;padding:5px 11px;border-radius:14px;border:.5px solid var(--b2);background:var(--s1);color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s}
 .wr-jump:hover{border-color:var(--lime);color:var(--text)}
 .trend-ctx{font-size:9px;padding:2px 7px;border-radius:3px;border:.5px solid var(--b1);background:var(--s1);color:var(--muted2);white-space:nowrap}
+/* Live 2026 FAAB dashboard */
+.live-faab-grid{display:flex;flex-direction:column;gap:4px}
+.live-faab-row{display:grid;grid-template-columns:110px 1fr 44px 52px;gap:10px;align-items:center;padding:3px 0}
+.live-faab-bar{height:6px;background:var(--s2);border-radius:3px;overflow:hidden}
+.live-faab-fill{height:100%;border-radius:3px;background:var(--lime);opacity:.75;transition:width .3s}
+.live-faab-fill.mid{background:var(--amber)}
+.live-faab-fill.low{background:var(--red)}
+@media(max-width:560px){.live-faab-row{grid-template-columns:90px 1fr 40px 44px;gap:6px}}
 /* League Intel categories */
 .li-cat{border:.5px solid var(--b1);border-radius:10px;background:var(--s1);margin-bottom:6px;overflow:hidden}
 .li-cat-head{width:100%;display:flex;align-items:center;gap:8px;padding:.75rem 1rem;background:transparent;border:none;cursor:pointer;font-family:'DM Mono',monospace;text-align:left;transition:background .12s}
@@ -449,6 +457,12 @@ h1 em{color:var(--lime);font-style:normal}
       <input class="bc-input" id="ps-input" oninput="runPlayerSearch()" placeholder="Search any player across all 2024–2025 auctions..." style="width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px 12px;font-size:12px">
       <div id="ps-results" style="margin-bottom:1.25rem"></div>
       <div class="sec">weekly waiver results — full auction view</div>
+      <div class="filter-row" style="margin-bottom:8px">
+        <span class="filter-lbl">Season:</span>
+        <button class="filter-btn wk-season-btn" id="wk-season-2026" onclick="setWeeklySeason(2026,this)">2026</button>
+        <button class="filter-btn wk-season-btn active" id="wk-season-2025" onclick="setWeeklySeason(2025,this)">2025</button>
+        <button class="filter-btn wk-season-btn" id="wk-season-2024" onclick="setWeeklySeason(2024,this)">2024</button>
+      </div>
       <div class="week-nav" id="week-nav"></div>
       <div id="week-filters" style="display:none">
         <div class="filter-row">
@@ -499,7 +513,7 @@ h1 em{color:var(--lime);font-style:normal}
 </div>
 
 <script>
-const LEAGUE='1257465455417757698',LEAGUE_2024='1128755808524730368';
+const LEAGUE='1257465455417757698',LEAGUE_2024='1128755808524730368',LEAGUE_2026='1395790995689328640';
 const BUDGET=100,WINNER='Shiv7',WINNER_2024='yloeub',YOU='BGroper';
 const ROSTER_MAP={1:'ablauer',2:'Tennial',3:'BGroper',4:'Rabert',5:'BFeiden',6:'mziegler19',7:'zbrez89',8:'SolFloodstein',9:'Shiv7',10:'yloeub',11:'JosephHopmeyer',12:'smayers'};
 const POS_COLOR={RB:'var(--green)',WR:'var(--lime)',QB:'var(--purple)',TE:'var(--amber)',K:'var(--muted2)',DEF:'var(--muted2)'};
@@ -778,11 +792,37 @@ function setWeekPosFilter(p,btn){
   if(activeBtn)renderWeek(parseInt(activeBtn.dataset.week));
 }
 
+function weeklyDataFor(season){
+  return season===2024?APP.weeklyData2024:season===2026?(APP.weeklyData2026||{}):APP.weeklyData;
+}
+
+let _weeklySeason=2025; // set to 2026 at load once that season has activity
+
+function buildWeekNav(){
+  const wd=weeklyDataFor(_weeklySeason);
+  const nav=document.getElementById('week-nav');
+  if(!nav)return;
+  nav.innerHTML=Array.from({length:18},(_,i)=>i+1).map(w=>{
+    const n=wd[w]?.players?.length||0;
+    return`<button class="week-btn ${n>0?'has-activity':''}" data-week="${w}" onclick="renderWeek(${w})">Wk ${w}${n>0?` (${n})`:''}`;
+  }).join('');
+}
+
+function setWeeklySeason(season,btn){
+  _weeklySeason=season;
+  document.querySelectorAll('.wk-season-btn').forEach(b=>b.classList.remove('active'));
+  if(btn)btn.classList.add('active');
+  buildWeekNav();
+  const wd=weeklyDataFor(season);
+  const firstActive=Array.from({length:18},(_,i)=>i+1).find(w=>(wd[w]?.players?.length||0)>0)||1;
+  renderWeek(firstActive);
+}
+
 function renderWeek(week){
   // Mark active tab
   document.querySelectorAll('.week-btn').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.week)===week));
 
-  const data=APP.weeklyData[week]||{players:[]};
+  const data=weeklyDataFor(_weeklySeason)[week]||{players:[]};
   const allPlayers=data.players||[];
 
   // Summary
@@ -822,7 +862,8 @@ function renderWeek(week){
 
   if(!players.length){
     const posTxt=currentPosFilter!=='all'?` at ${currentPosFilter}`:'';
-    document.getElementById('week-content').innerHTML=`<div style="font-size:12px;color:var(--muted);padding:1rem 0">No${currentFilter==='contested'?' contested':currentFilter==='won'?' won':''} waiver activity${posTxt} in Week ${week}.</div>`;
+    const preseason=_weeklySeason===2026&&Object.keys(weeklyDataFor(2026)).every(w=>!(weeklyDataFor(2026)[w]?.players?.length));
+    document.getElementById('week-content').innerHTML=`<div style="font-size:12px;color:var(--muted);padding:1rem 0">${preseason?'No 2026 waiver activity yet — this view goes live when the season\'s first waivers run.':`No${currentFilter==='contested'?' contested':currentFilter==='won'?' won':''} waiver activity${posTxt} in Week ${week}.`}</div>`;
     return;
   }
 
@@ -1285,7 +1326,7 @@ function switchPosIntelSeason(name, season){
   const uid=name.replace(/[^a-z0-9]/gi,'');
   const el=document.getElementById('posintel-'+uid);
   if(el) el.innerHTML=renderPositionIntelligence(name, season);
-  ['2024','2025','all'].forEach(y=>{
+  ['2024','2025','2026','all'].forEach(y=>{
     const btn=document.getElementById('posintel-btn-'+y+'-'+uid);
     if(!btn)return;
     const isActive=(y==='all'&&season==='all')||(y!=='all'&&parseInt(y)===season);
@@ -1343,6 +1384,7 @@ function showManagerDetail(name){
     <div class="sec" id="jmp-posintel" style="margin-top:0;display:flex;align-items:center;justify-content:space-between">
       <span>Position intelligence</span>
       <div style="display:flex;gap:4px">
+        <button id="posintel-btn-2026-${name.replace(/[^a-z0-9]/gi,'')}" onclick="switchPosIntelSeason('${name}',2026)" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">2026</button>
         <button id="posintel-btn-2025-${name.replace(/[^a-z0-9]/gi,'')}" onclick="switchPosIntelSeason('${name}',2025)" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--lime);background:var(--lime);color:#0d0d0f;cursor:pointer;font-family:'DM Mono',monospace;font-weight:500">2025</button>
         <button id="posintel-btn-2024-${name.replace(/[^a-z0-9]/gi,'')}" onclick="switchPosIntelSeason('${name}',2024)" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">2024</button>
         <button id="posintel-btn-all-${name.replace(/[^a-z0-9]/gi,'')}" onclick="switchPosIntelSeason('${name}','all')" style="font-size:9px;padding:2px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">All time</button>
@@ -1588,6 +1630,16 @@ function calcBidRecommendation(pos, competitors){
     // Style/trend adjustments move within their history — they don't invent new highs.
     if(allTimeMax>0) effectiveCeiling=Math.min(effectiveCeiling, allTimeMax);
 
+    // Hard reality: a rival cannot bid more than their remaining 2026 budget.
+    // This cap dominates everything above once the season is underway.
+    const rem2026=APP.remaining2026?.[name];
+    let budgetCapped=false;
+    if(rem2026!==undefined&&rem2026!==null&&rem2026<effectiveCeiling){
+      effectiveCeiling=rem2026;
+      budgetCapped=true;
+      notes.unshift(`Only ${fmt(rem2026)} FAAB left in 2026 — cannot bid above that`);
+    }
+
     // Risk level based on effective ceiling
     let risk;
     if(hasOutliers&&allTimeMax>=ceiling*1.5&&allTimeMax>=10) risk='Spike risk';
@@ -1596,7 +1648,7 @@ function calcBidRecommendation(pos, competitors){
     else if(totalBids===0) risk='No data';
     else risk='Low';
 
-    results.push({name,typical,ceiling,allTimeMax,effectiveCeiling,
+    results.push({name,typical,ceiling,allTimeMax,effectiveCeiling,budgetCapped,rem2026,
       risk,hasData:true,trend,totalBids,arch,notes,
       beatPrice:bp.price,beatN:bp.n,habit,
       posWinRate,posContested:posContested.length});
@@ -1752,6 +1804,55 @@ function calcBudgetStrategy(){
   return{phases, insights, my25, my24, top4avg, top4names};
 }
 
+function renderLiveDashboard(){
+  // Live 2026 season: remaining FAAB per manager + season-to-date activity.
+  // Preseason-safe — everyone at $100 with a "goes live" note until waivers run.
+  const rem=APP.remaining2026||{};
+  const st26=APP.stats2026||{};
+  const managers=Object.values(ROSTER_MAP);
+  const rows=managers.map(n=>({
+    name:n,
+    left:rem[n]??BUDGET,
+    spent:st26[n]?.totalSpent||0,
+    adds:(st26[n]?.bids||[]).length
+  })).sort((a,b)=>b.left-a.left||a.name.localeCompare(b.name));
+  const totalSpent=rows.reduce((s,r)=>s+r.spent,0);
+  const totalAdds=rows.reduce((s,r)=>s+r.adds,0);
+  const live=totalSpent>0||totalAdds>0;
+  const wk=APP.nflState?.week;
+  const inSeason=['regular','post'].includes(APP.nflState?.season_type);
+
+  return `
+    <div class="wr-panel" style="margin-bottom:1rem">
+      <div class="wr-panel-header">
+        <span class="wr-panel-icon">📡</span>
+        <div>
+          <div class="wr-panel-title">Live 2026 FAAB</div>
+          <div class="wr-panel-sub">${live?`Remaining budgets straight from Sleeper${inSeason&&wk?` · Week ${wk}`:''} — these cap what rivals can actually bid`:'Everyone starts at $100 — this panel goes live when the first waivers run'}</div>
+        </div>
+        ${live?`<span style="margin-left:auto;font-size:9px;padding:3px 9px;border-radius:10px;background:rgba(200,241,53,.1);border:.5px solid rgba(200,241,53,.35);color:var(--lime)">● LIVE</span>`:''}
+      </div>
+      <div class="wr-panel-body">
+        ${live?`
+        <div class="sum-grid" style="margin-bottom:12px">
+          <div class="sum-card"><div class="sum-val c-lime">${fmt((rem[YOU]??BUDGET))}</div><div class="sum-lbl">Your remaining FAAB</div></div>
+          <div class="sum-card"><div class="sum-val">${fmt(totalSpent)}</div><div class="sum-lbl">League spent so far</div></div>
+          <div class="sum-card"><div class="sum-val">${totalAdds}</div><div class="sum-lbl">Winning claims</div></div>
+          <div class="sum-card"><div class="sum-val">${fmt(Math.round(rows.reduce((s,r)=>s+r.left,0)/rows.length))}</div><div class="sum-lbl">Avg remaining</div></div>
+        </div>`:''}
+        <div class="live-faab-grid">
+          ${rows.map(r=>`
+            <div class="live-faab-row">
+              <div class="mgr-link ${nameClass(r.name)}" onclick="goToManager('${r.name}')" title="View ${r.name}'s profile" style="font-size:11px">${r.name}${r.name===YOU?' ◀':''}</div>
+              <div class="live-faab-bar"><div class="live-faab-fill ${r.left<=15?'low':r.left<=40?'mid':''}" style="width:${Math.max(Math.round(r.left/BUDGET*100),2)}%"></div></div>
+              <div style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:12px;color:${r.left<=15?'var(--red)':r.left<=40?'var(--amber)':'var(--text)'};text-align:right">${fmt(r.left)}</div>
+              <div style="font-size:9px;color:var(--muted);text-align:right">${r.adds>0?`${r.adds} add${r.adds!==1?'s':''}`:'—'}</div>
+            </div>`).join('')}
+        </div>
+      </div>
+    </div>`;
+}
+
 function wrJump(title){
   // Scroll to a War Room panel by its title — no id bookkeeping needed
   const t=[...document.querySelectorAll('.wr-panel-title')].find(el=>el.textContent===title);
@@ -1769,6 +1870,7 @@ function renderWarRoom(){
   el.innerHTML=`
     <div class="sec" style="margin-top:0">⚔ War Room — waiver strategy hub</div>
     <div class="wr-jump-row">
+      <button class="wr-jump" onclick="wrJump('Live 2026 FAAB')">📡 Live 2026</button>
       <button class="wr-jump" onclick="wrJump('Bid Calculator')">🎯 Calculator</button>
       <button class="wr-jump" onclick="wrJump('Budget Strategy')">💰 Budget</button>
       <button class="wr-jump" onclick="wrJump('Trending on Sleeper')">📈 Trending</button>
@@ -1776,6 +1878,8 @@ function renderWarRoom(){
       <button class="wr-jump" onclick="wrJump('Edges — exploitable tendencies')">⚡ Edges</button>
       <button class="wr-jump" onclick="wrJump('Manager Scouting Notes')">📝 Notes</button>
     </div>
+
+    ${renderLiveDashboard()}
 
     <div class="wr-grid">
       <!-- BID CALCULATOR -->
@@ -2082,7 +2186,7 @@ function updateBidCalc(){
             </div>
             <div style="text-align:right;color:var(--muted2)">${r.hasData?fmt(r.typical):'—'}</div>
             <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:${(r.ceiling||0)>=15?'var(--amber)':'var(--text)'}">${r.hasData?fmt(r.ceiling):'—'}</div>
-            <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:${(r.effectiveCeiling||0)>(r.ceiling||0)?'var(--red)':(r.effectiveCeiling||0)<(r.ceiling||0)?'var(--green)':'var(--muted2)'}">${r.hasData?fmt(r.effectiveCeiling):'—'}</div>
+            <div style="text-align:right;font-family:'Space Grotesk',sans-serif;font-weight:700;color:${r.budgetCapped?'var(--blue)':(r.effectiveCeiling||0)>(r.ceiling||0)?'var(--red)':(r.effectiveCeiling||0)<(r.ceiling||0)?'var(--green)':'var(--muted2)'}">${r.hasData?fmt(r.effectiveCeiling):'—'}${r.budgetCapped?'<span style="font-size:8px;display:block;color:var(--blue);font-weight:400">budget cap</span>':''}</div>
             <div style="text-align:right"><span style="font-size:9px;padding:2px 6px;border-radius:3px;background:${r.risk==='High'||r.risk==='Spike risk'?'rgba(248,113,113,.1)':r.risk==='Moderate'?'rgba(251,191,36,.08)':'var(--s2)'};color:${r.risk==='High'||r.risk==='Spike risk'?'var(--red)':r.risk==='Moderate'?'var(--amber)':'var(--muted2)'}">${r.risk}</span></div>
           </div>`).join('')}
       </div>
@@ -2657,7 +2761,7 @@ function renderLeagueIntel(){
 function searchPlayerAuctions(q){
   q=q.trim().toLowerCase();
   const out=[];
-  [[2025,APP.weeklyData],[2024,APP.weeklyData2024]].forEach(([yr,wd])=>{
+  [[2026,APP.weeklyData2026],[2025,APP.weeklyData],[2024,APP.weeklyData2024]].forEach(([yr,wd])=>{
     Object.entries(wd||{}).forEach(([wStr,d])=>{
       (d.players||[]).forEach(p=>{
         if(p.name.toLowerCase().includes(q)) out.push({season:yr,week:parseInt(wStr),p});
@@ -2745,7 +2849,7 @@ function clearPlayerCache(){
 
 // ── RIVALRY MATRIX ───────────────────────────────────────────────────────────
 function buildRivalryData(season){
-  const weeklySource=season===2024?APP.weeklyData2024:APP.weeklyData;
+  const weeklySource=season===2024?APP.weeklyData2024:season===2026?(APP.weeklyData2026||{}):APP.weeklyData;
   const managers=Object.values(ROSTER_MAP);
 
   // rivalry[A][B] = {won, lost, totalBids, dollarWon, dollarLost, auctions:[]}
@@ -2826,6 +2930,7 @@ function mergeRivalry(rA, rB){
 function rivalryFor(season){
   if(season===2024)return _rivalryCurrent.rivalry2024;
   if(season===2025)return _rivalryCurrent.rivalry;
+  if(season===2026)return _rivalryCurrent.rivalry2026;
   return _rivalryCurrent.rivalryAll;
 }
 
@@ -2833,10 +2938,11 @@ function renderRivals(){
   if(!_rivalryCurrent.rivalry){
     _rivalryCurrent.rivalry=buildRivalryData(2025);
     _rivalryCurrent.rivalry2024=buildRivalryData(2024);
-    _rivalryCurrent.rivalryAll=mergeRivalry(_rivalryCurrent.rivalry2024,_rivalryCurrent.rivalry);
+    _rivalryCurrent.rivalry2026=buildRivalryData(2026);
+    _rivalryCurrent.rivalryAll=mergeRivalry(mergeRivalry(_rivalryCurrent.rivalry2024,_rivalryCurrent.rivalry),_rivalryCurrent.rivalry2026);
   }
   const season=_rivalryCurrent.currentSeason||'all';
-  const seasonLbl=season==='all'?'2024–25':season;
+  const seasonLbl=season==='all'?'2024–26':season;
   const el=document.getElementById('rivals-content');
   const managers=Object.values(ROSTER_MAP);
   const r=rivalryFor(season);
@@ -2880,6 +2986,7 @@ function renderRivals(){
     <div class="sec" style="margin-top:0">Season</div>
     <div style="display:flex;gap:6px;margin-bottom:6px">
       <button id="rivals-btn-all" onclick="switchRivalsSeason('all')" style="${btnStyle(season==='all')}">All time</button>
+      <button id="rivals-btn-2026" onclick="switchRivalsSeason(2026)" style="${btnStyle(season===2026)}">2026</button>
       <button id="rivals-btn-2025" onclick="switchRivalsSeason(2025)" style="${btnStyle(season===2025)}">2025</button>
       <button id="rivals-btn-2024" onclick="switchRivalsSeason(2024)" style="${btnStyle(season===2024)}">2024</button>
     </div>
@@ -2940,7 +3047,7 @@ function switchRivalsSeason(season){
 
 function showRivalryDrill(rowMgr, colMgr){
   const season=_rivalryCurrent.currentSeason||'all';
-  const seasonLbl=season==='all'?'2024–25':season;
+  const seasonLbl=season==='all'?'2024–26':season;
   const r=rivalryFor(season);
   const d=r[rowMgr]?.[colMgr];
   if(!d||!d.auctions.length){
@@ -2997,28 +3104,27 @@ function showRivalryDrill(rowMgr, colMgr){
 
 // ── POSITION INTELLIGENCE ─────────────────────────────────────────────────────
 function buildPositionIntel(name, season){
-  // For 'all' — merge both seasons into a combined stats object
+  // For 'all' — merge all seasons into a combined stats object
   let s, s_other;
   if(season==='all'){
+    const s26=APP.stats2026?.[name]||{bids:[],failedBids:[],posSpend:{}};
     const s25=APP.stats[name]||{bids:[],failedBids:[],posSpend:{}};
     const s24=APP.stats2024[name]||{bids:[],failedBids:[],posSpend:{}};
     // Merge bids, tagging each with season for context
-    const bids25=(s25.bids||[]).map(b=>({...b,season:2025}));
-    const bids24=(s24.bids||[]).map(b=>({...b,season:2024}));
-    const fail25=(s25.failedBids||[]).map(b=>({...b,season:2025}));
-    const fail24=(s24.failedBids||[]).map(b=>({...b,season:2024}));
+    const tag=(arr,yr)=>(arr||[]).map(b=>({...b,season:yr}));
     s={
-      bids:[...bids25,...bids24],
-      failedBids:[...fail25,...fail24],
+      bids:[...tag(s26.bids,2026),...tag(s25.bids,2025),...tag(s24.bids,2024)],
+      failedBids:[...tag(s26.failedBids,2026),...tag(s25.failedBids,2025),...tag(s24.failedBids,2024)],
       posSpend:{}
     };
     // Merge posSpend
-    Object.entries(s25.posSpend||{}).forEach(([p,v])=>{s.posSpend[p]=(s.posSpend[p]||0)+v;});
-    Object.entries(s24.posSpend||{}).forEach(([p,v])=>{s.posSpend[p]=(s.posSpend[p]||0)+v;});
+    [s26,s25,s24].forEach(src=>{
+      Object.entries(src.posSpend||{}).forEach(([p,v])=>{s.posSpend[p]=(s.posSpend[p]||0)+v;});
+    });
     s_other=null; // no YoY comparison in all-time view
   } else {
-    s = season===2024 ? APP.stats2024[name] : APP.stats[name];
-    s_other = season===2024 ? APP.stats[name] : APP.stats2024[name];
+    s = season===2024 ? APP.stats2024[name] : season===2026 ? (APP.stats2026?.[name]) : APP.stats[name];
+    s_other = season===2024 ? APP.stats[name] : season===2026 ? APP.stats[name] : APP.stats2024[name];
   }
   if(!s) return {};
 
@@ -4079,15 +4185,17 @@ async function main(){
   try{
     // Fetch 2025 rosters + transactions AND 2024 in parallel
     setMsg('Fetching rosters & transactions (2024 + 2025)...'); setProg(5);
-    const [rosters, rosters2024, weekResults, weekResults2024, matchups, matchups2024, nflState, leagueObj] = await Promise.all([
+    const [rosters, rosters2024, rosters2026, weekResults, weekResults2024, weekResults2026, matchups, matchups2024, nflState, leagueObj] = await Promise.all([
       fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/rosters`),
       fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/rosters`),
+      fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2026}/rosters`).catch(()=>[]),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/transactions/${i+1}`).catch(()=>[]))),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/transactions/${i+1}`).catch(()=>[]))),
+      Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2026}/transactions/${i+1}`).catch(()=>[]))),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}/matchups/${i+1}`).catch(()=>[]))),
       Promise.all(Array.from({length:18},(_,i)=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2024}/matchups/${i+1}`).catch(()=>[]))),
       fetchJ('https://api.sleeper.app/v1/state/nfl').catch(()=>null),
-      fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}`).catch(()=>null)
+      fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2026}`).catch(()=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}`).catch(()=>null))
     ]);
     APP.nflState=nflState; // {season, week, season_type: 'off'|'pre'|'regular'|'post'} or null
     // League scoring → which projection stat to use. This league is 0.5 PPR;
@@ -4101,9 +4209,14 @@ async function main(){
     APP.results=parseMatchupResults(matchups, ROSTER_MAP);
     APP.results2024=parseMatchupResults(matchups2024, ROSTER_MAP);
 
-    const faabLeft={}, faabLeft2024={};
+    const faabLeft={}, faabLeft2024={}, faabLeft2026={};
     rosters.forEach(r=>{faabLeft[r.roster_id]=BUDGET-(r.settings?.waiver_budget_used??0);});
     rosters2024.forEach(r=>{faabLeft2024[r.roster_id]=BUDGET-(r.settings?.waiver_budget_used??0);});
+    (rosters2026||[]).forEach(r=>{faabLeft2026[r.roster_id]=BUDGET-(r.settings?.waiver_budget_used??0);});
+    // Live 2026 remaining FAAB by manager name — powers the dashboard and the
+    // bid calculator's budget cap. Default $100 each until Sleeper reports usage.
+    APP.remaining2026={};
+    Object.entries(ROSTER_MAP).forEach(([rid,n])=>{APP.remaining2026[n]=faabLeft2026[rid]??BUDGET;});
 
     // Collect all pids from both seasons
     const neededPids=new Set();
@@ -4160,9 +4273,11 @@ async function main(){
     // Parse both seasons using shared helper
     const {stats, weeklyData}=parseSeasonData(weekResults, ROSTER_MAP, playerMap, faabLeft);
     const {stats:stats2024, weeklyData:weeklyData2024}=parseSeasonData(weekResults2024, ROSTER_MAP, playerMap, faabLeft2024);
+    const {stats:stats2026, weeklyData:weeklyData2026}=parseSeasonData(weekResults2026, ROSTER_MAP, playerMap, faabLeft2026);
 
     APP.stats=stats; APP.weeklyData=weeklyData;
     APP.stats2024=stats2024; APP.weeklyData2024=weeklyData2024;
+    APP.stats2026=stats2026; APP.weeklyData2026=weeklyData2026;
 
     // Week + position totals for 2024
     const weekTotals2024={};
@@ -4265,13 +4380,15 @@ async function main(){
     }).join('');
 
     // RENDER WEEKLY NAV
-    document.getElementById('week-nav').innerHTML=Array.from({length:18},(_,i)=>i+1).map(w=>{
-      const hasActivity=(weeklyData[w]?.players?.length||0)>0;
-      return`<button class="week-btn ${hasActivity?'has-activity':''}" data-week="${w}" onclick="renderWeek(${w})">Wk ${w}${hasActivity?` (${weeklyData[w].players.length})`:''}`;
-    }).join('');
-
-    // Auto-select first active week
-    const firstActive=Array.from({length:18},(_,i)=>i+1).find(w=>(weeklyData[w]?.players?.length||0)>0)||1;
+    // Weekly defaults to the live 2026 season once it has waiver activity
+    const has2026=Object.values(weeklyData2026||{}).some(d=>d?.players?.length);
+    _weeklySeason=has2026?2026:2025;
+    const selBtn=document.getElementById('wk-season-'+_weeklySeason);
+    document.querySelectorAll('.wk-season-btn').forEach(b=>b.classList.remove('active'));
+    if(selBtn)selBtn.classList.add('active');
+    buildWeekNav();
+    const wdInit=weeklyDataFor(_weeklySeason);
+    const firstActive=Array.from({length:18},(_,i)=>i+1).find(w=>(wdInit[w]?.players?.length||0)>0)||1;
     renderWeek(firstActive);
 
     // Render pacing chart + contested players
