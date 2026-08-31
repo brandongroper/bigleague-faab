@@ -261,6 +261,15 @@ h1 em{color:var(--lime);font-style:normal}
 .live-faab-fill.mid{background:var(--amber)}
 .live-faab-fill.low{background:var(--red)}
 @media(max-width:560px){.live-faab-row{grid-template-columns:90px 1fr 40px 44px;gap:6px}}
+/* 2026 roster panel on manager detail */
+.roster-panel{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem}
+.roster-panel-title{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.roster-row{display:grid;grid-template-columns:150px 1fr;gap:10px;padding:5px 0;border-bottom:.5px solid var(--b1);align-items:baseline}
+.roster-row:last-child{border-bottom:none}
+.roster-pos{display:flex;align-items:center;gap:6px}
+.roster-badge{font-size:8px;padding:1px 6px;border-radius:3px;border:.5px solid;text-transform:uppercase;letter-spacing:.05em}
+.roster-names{font-size:11px;color:var(--muted2);line-height:1.7}
+@media(max-width:560px){.roster-row{grid-template-columns:1fr;gap:3px}}
 /* League Intel categories */
 .li-cat{border:.5px solid var(--b1);border-radius:10px;background:var(--s1);margin-bottom:6px;overflow:hidden}
 .li-cat-head{width:100%;display:flex;align-items:center;gap:8px;padding:.75rem 1rem;background:transparent;border:none;cursor:pointer;font-family:'DM Mono',monospace;text-align:left;transition:background .12s}
@@ -1340,6 +1349,45 @@ function switchPosIntelSeason(name, season){
   });
 }
 
+function renderRoster2026(name){
+  // Compact current-roster panel: one row per position with counts, need badge,
+  // and injury-flagged names. This is exactly what the bid calculator reasons
+  // from — shown so the need adjustments can be verified at a glance.
+  const roster=APP.rosters2026?.[name];
+  if(!roster||!roster.length)return '';
+  const ORDER=['QB','RB','WR','TE','K','DEF'];
+  const OUTISH=['Out','IR','PUP','Sus','COV'];
+  const groups={};
+  roster.forEach(pid=>{
+    const pm=APP.playerMap[pid];
+    if(!pm||!ORDER.includes(pm.pos))return;
+    (groups[pm.pos]=groups[pm.pos]||[]).push(pm);
+  });
+  const rows=ORDER.filter(p=>groups[p]?.length).map(pos=>{
+    const list=groups[pos].sort((a,b)=>(a.dco||99)-(b.dco||99)||a.name.localeCompare(b.name));
+    const hurt=list.filter(p=>OUTISH.includes(p.inj)).length;
+    const need=rosterNeed(name,pos);
+    const badge=need?(
+      need.status==='severe'?`<span class="roster-badge" style="color:var(--red);border-color:var(--red)">severe need</span>`:
+      need.status==='thin'?`<span class="roster-badge" style="color:var(--amber);border-color:var(--amber)">thin</span>`:
+      need.status==='deep'?`<span class="roster-badge" style="color:var(--blue);border-color:var(--blue)">deep</span>`:''
+    ):'';
+    return `<div class="roster-row">
+      <div class="roster-pos"><span class="bid-pos-cell" style="color:${posColor(pos)}">${pos}</span><span style="font-size:9px;color:var(--muted)">${list.length}${hurt?` · <span style="color:var(--red)">${hurt} hurt</span>`:''}</span>${badge}</div>
+      <div class="roster-names">${list.map(p=>{
+        const injC=p.inj?(OUTISH.includes(p.inj)?'var(--red)':'var(--amber)'):null;
+        return `<span style="white-space:nowrap">${p.name}${p.inj?` <span style="font-size:8px;color:${injC}">${p.inj}</span>`:''}</span>`;
+      }).join('<span style="color:var(--b2)"> · </span>')}</div>
+    </div>`;
+  }).join('');
+  if(!rows)return '';
+  return `
+    <div class="roster-panel">
+      <div class="roster-panel-title">2026 roster — what the bid calculator sees</div>
+      ${rows}
+    </div>`;
+}
+
 function showManagerDetail(name){
   const s=APP.stats[name];
   if(!s)return;
@@ -1372,12 +1420,13 @@ function showManagerDetail(name){
       <div class="dmet"><div class="dmet-v">${s.totalAttempts}</div><div class="dmet-l">Total bids</div></div>
       <div class="dmet"><div class="dmet-v ${s.avgBid>=15?'c-amber':''}">${s.avgBid>0?fmt(Math.round(s.avgBid)):'-'}</div><div class="dmet-l">Avg winning bid</div></div>
       <div class="dmet"><div class="dmet-v ${s.maxBid>=25?'c-red':s.maxBid>=12?'c-amber':s.maxBid>0?'c-green':'c-muted'}">${s.maxBid>0?fmt(s.maxBid):'-'}</div><div class="dmet-l">Largest bid</div></div>
-      <div class="dmet"><div class="dmet-v ${s.remainingFAAB!==null&&s.remainingFAAB>=50?'c-green':s.remainingFAAB!==null&&s.remainingFAAB<=15?'c-red':'c-muted'}">${s.remainingFAAB!==null?fmt(s.remainingFAAB):'—'}</div><div class="dmet-l">Remaining</div></div>
+      <div class="dmet"><div class="dmet-v ${(APP.remaining2026?.[name]??100)>=50?'c-green':(APP.remaining2026?.[name]??100)<=15?'c-red':'c-amber'}">${fmt(APP.remaining2026?.[name]??100)}</div><div class="dmet-l">2026 FAAB left</div></div>
     </div>
     <div class="intel-brief">
       <div class="intel-brief-label">⚡ Intel Brief — two-season synthesis</div>
       <div class="intel-brief-body">${generateIntelBrief(name)}</div>
     </div>
+    ${renderRoster2026(name)}
     <div class="jump-nav">
       ${[['jmp-posintel','Position intel'],['jmp-failed','Failed bids'],['jmp-yoy','Year over year'],['jmp-bids','Winning bids'],['jmp-overbid','Overbid analysis'],['jmp-tend','Tendencies']].map(([id,lbl])=>`<button class="jump-btn" onclick="document.getElementById('${id}')?.scrollIntoView({behavior:'smooth',block:'start'})">${lbl}</button>`).join('')}
     </div>
@@ -1510,6 +1559,38 @@ let _bsState={
 // Bid calculator state
 let _bcState={pos:'RB', competitors:new Set(), target:null};
 
+function rosterNeed(name,pos){
+  // How badly does this manager need `pos`, judged from their actual 2026 roster?
+  // Compares their HEALTHY count (excl. Out/IR/PUP/Sus) at the position against
+  // the league median raw count. Returns null when roster data is unavailable.
+  const roster=APP.rosters2026?.[name];
+  if(!roster||!roster.length||!APP.playerMap)return null;
+  const OUTISH=['Out','IR','PUP','Sus','COV'];
+  const countAt=(pids)=>{
+    let raw=0,hurt=0;
+    pids.forEach(pid=>{
+      const pm=APP.playerMap[pid];
+      if(pm?.pos===pos){raw++;if(OUTISH.includes(pm.inj))hurt++;}
+    });
+    return{raw,hurt,healthy:raw-hurt};
+  };
+  // League medians cached per position
+  if(!APP._rosterMedians){
+    APP._rosterMedians={};
+    ['QB','RB','WR','TE','K','DEF'].forEach(p=>{
+      const counts=Object.values(APP.rosters2026).map(pids=>pids.reduce((s,pid)=>s+(APP.playerMap[pid]?.pos===p?1:0),0)).sort((a,b)=>a-b);
+      APP._rosterMedians[p]=counts.length?counts[Math.floor(counts.length/2)]:0;
+    });
+  }
+  const {raw,hurt,healthy}=countAt(roster);
+  const median=APP._rosterMedians[pos]??0;
+  let status='ok';
+  if(healthy<=Math.max(median-2,0))status='severe';
+  else if(healthy<median)status='thin';
+  else if(raw>=median+2)status='deep';
+  return{raw,hurt,healthy,median,status};
+}
+
 function calcBidRecommendation(pos, competitors){
   const results=[];
 
@@ -1612,6 +1693,23 @@ function calcBidRecommendation(pos, competitors){
       notes.push(`Panic bidder — median ${fmt(panic.medAfterLoss)} after a loss vs ${fmt(panic.medAfterWin)} after a win`);
     }
 
+    // 5b. Roster reality — their actual 2026 roster shape at this position.
+    // Thin roster = motivated bidder (bump applies BEFORE the all-time-max cap:
+    // desperation doesn't invent new highs). Deep roster = shrugs at this market
+    // (reduction applies AFTER the cap below — motivation discounts their max).
+    const need=rosterNeed(name,pos);
+    if(need){
+      if(need.status==='severe'){
+        effectiveCeiling=Math.round(effectiveCeiling*1.25);
+        notes.push(`Roster need: only ${need.healthy} healthy ${pos}${need.healthy!==1?'s':''} rostered (league median ${need.median})${need.hurt>0?` — ${need.hurt} on Out/IR`:''} — expect them to fight`);
+      } else if(need.status==='thin'){
+        effectiveCeiling=Math.round(effectiveCeiling*1.12);
+        notes.push(`Roster lean at ${pos}: ${need.healthy} healthy vs league median ${need.median}${need.hurt>0?` (${need.hurt} hurt)`:''}`);
+      } else if(need.status==='deep'){
+        notes.push(`Already deep at ${pos} (${need.raw} rostered vs median ${need.median}) — less likely to contest`);
+      }
+    }
+
     // 6. Empirical beat price at this position (falls back to all-position if thin)
     let bp=computeBeatPrice(name,pos);
     if(bp.price===null) bp=computeBeatPrice(name);
@@ -1629,6 +1727,10 @@ function calcBidRecommendation(pos, competitors){
     // Ground in reality: nobody has ever paid more than their all-time max.
     // Style/trend adjustments move within their history — they don't invent new highs.
     if(allTimeMax>0) effectiveCeiling=Math.min(effectiveCeiling, allTimeMax);
+
+    // Deep-roster discount lands after the cap: they COULD pay their max here,
+    // but with a full depth chart they won't want to.
+    if(need&&need.status==='deep') effectiveCeiling=Math.round(effectiveCeiling*0.85);
 
     // Hard reality: a rival cannot bid more than their remaining 2026 budget.
     // This cap dominates everything above once the season is underway.
@@ -2131,7 +2233,8 @@ function updateBidCalc(){
           ${tPm.team?`<span class="trend-ctx">${tPm.team}</span>`:''}
           ${tPm.inj?`<span class="trend-ctx" style="color:${tInjC};border-color:${tInjC}">${tPm.inj}</span>`:''}
         </div>
-        ${selCount<totalMgrs?`<div style="font-size:9px;color:var(--muted2);margin-top:2px">Pre-selected the ${selCount} biggest threat${selCount!==1?'s':''} at ${_bcState.target.pos} — tick more above if you expect others to bid.</div>`:''}
+        ${selCount<totalMgrs?`<div style="font-size:9px;color:var(--muted2);margin-top:2px">Pre-selected the ${selCount} likeliest threat${selCount!==1?'s':''} at ${_bcState.target.pos} — tick more above if you expect others to bid.</div>`:''}
+        ${_bcState.targetReasons&&Object.keys(_bcState.targetReasons).length?`<div style="font-size:9px;color:var(--muted);margin-top:2px">${Object.entries(_bcState.targetReasons).map(([m,r])=>`<span style="color:var(--muted2)">${m}</span> (${r})`).join(' · ')}</div>`:''}
       </div>
       <button onclick="clearBidCalcTarget()" style="font-size:9px;padding:3px 8px;border-radius:4px;border:.5px solid var(--b2);background:transparent;color:var(--muted2);cursor:pointer;font-family:'DM Mono',monospace">Clear</button>
     </div>`:'';
@@ -2385,6 +2488,28 @@ function refreshTrending(){
   });
 }
 
+function teammateOwners(targetPid){
+  // Who rosters a same-team, same-position player as the target? Those managers
+  // have handcuff/insurance motivation (e.g. the Javonte Williams owner when a
+  // DAL backup RB is trending) even with zero bid history at the position.
+  const t=APP.playerMap?.[targetPid];
+  if(!t||!t.team||!['RB','WR','TE','QB'].includes(t.pos)||!APP.rosters2026)return{};
+  const out={};
+  Object.entries(APP.rosters2026).forEach(([mgr,pids])=>{
+    if(mgr===YOU)return;
+    let best=null;
+    pids.forEach(pid=>{
+      if(pid===targetPid)return;
+      const pm=APP.playerMap[pid];
+      if(pm&&pm.team===t.team&&pm.pos===t.pos){
+        if(!best||(pm.dco||99)<(best.dco||99))best={name:pm.name,dco:pm.dco||99};
+      }
+    });
+    if(best)out[mgr]=best;
+  });
+  return out;
+}
+
 function addTrendingToBidCalc(pid, name, pos){
   // Callable from any tab (Trending, Player Search) — jump to War Room first so
   // the calculator DOM exists and the user lands where the answer is.
@@ -2397,20 +2522,32 @@ function addTrendingToBidCalc(pid, name, pos){
   _bcState.pos=usePos;
   _bcState.target={pid, name, pos:usePos};
 
-  // Pre-select only the TOP 3 threats at this position — keeps the widget short
-  // and gives a focused starting recommendation. The remaining managers stay one
-  // tap away. Rank by adjusted ceiling (folds in style, trend, panic, win-rate).
+  // Pre-select the TOP 3 threats by LIKELIHOOD of contesting this player, not
+  // just bid-history size: adjusted ceiling + roster need + handcuff ownership.
+  // A zero-history manager who rosters the same backfield still surfaces.
   const managers=Object.values(ROSTER_MAP).filter(m=>m!==YOU);
-  const ranked=calcBidRecommendation(usePos, managers).results
-    .filter(r=>r.hasData)
-    .sort((a,b)=>(b.effectiveCeiling||0)-(a.effectiveCeiling||0));
-  const top3=ranked.slice(0,3).map(r=>r.name);
-  // If nobody has history here, fall back to the 3 most aggressive overall bidders
-  // so the calc still returns guidance rather than an empty prompt.
+  const results=calcBidRecommendation(usePos, managers).results;
+  const mates=teammateOwners(pid);
+  const reasons={};
+  const scored=managers.map(m=>{
+    const r=results.find(x=>x.name===m)||{};
+    let score=r.effectiveCeiling||0;
+    const rs=[];
+    const need=rosterNeed(m,usePos);
+    if(need?.status==='severe'){score+=6;rs.push(`severe ${usePos} need`);}
+    else if(need?.status==='thin'){score+=3;rs.push(`thin at ${usePos}`);}
+    if(mates[m]){score+=mates[m].dco<=2?8:5;rs.push(`rosters ${mates[m].name}`);}
+    if(rs.length)reasons[m]=rs.join(', ');
+    return{m,score};
+  }).sort((a,b)=>b.score-a.score);
+  const top3=scored.filter(x=>x.score>0).slice(0,3).map(x=>x.m);
+  // If nobody scores (no history, no roster signal), fall back to the 3 most
+  // aggressive overall spenders so the calc still returns guidance.
   const fallback=managers
     .map(m=>({m, spent:(APP.stats[m]?.totalSpent||0)+(APP.stats2024[m]?.totalSpent||0)}))
     .sort((a,b)=>b.spent-a.spent).slice(0,3).map(x=>x.m);
   _bcState.competitors=new Set(top3.length?top3:fallback);
+  _bcState.targetReasons=Object.fromEntries(Object.entries(reasons).filter(([m])=>_bcState.competitors.has(m)));
 
   // Sync the UI: position dropdown + competitor chips
   const posEl=document.getElementById('bc-pos');
@@ -2438,6 +2575,7 @@ function clearBidCalcTarget(){
   // no competitors — so removing the player snaps back exactly like clearing all
   // teams does. (Previously this only nulled the target, leaving the chips set.)
   _bcState.target=null;
+  _bcState.targetReasons=null;
   _bcState.competitors=new Set();
   document.querySelectorAll('.bc-mgr-check').forEach(el=>el.classList.remove('selected'));
   updateBidCalc();
@@ -4217,6 +4355,10 @@ async function main(){
     // bid calculator's budget cap. Default $100 each until Sleeper reports usage.
     APP.remaining2026={};
     Object.entries(ROSTER_MAP).forEach(([rid,n])=>{APP.remaining2026[n]=faabLeft2026[rid]??BUDGET;});
+    // 2026 roster composition by manager — powers roster-need adjustments in the
+    // bid calculator (a thin roster fights harder; a deep one shrugs).
+    APP.rosters2026={};
+    (rosters2026||[]).forEach(r=>{const n=ROSTER_MAP[r.roster_id];if(n)APP.rosters2026[n]=r.players||[];});
 
     // Collect all pids from both seasons
     const neededPids=new Set();
