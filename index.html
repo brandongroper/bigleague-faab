@@ -410,7 +410,7 @@ h1 em{color:var(--lime);font-style:normal}
 <div class="page">
   <div class="topbar">
     <div>
-      <div class="eyebrow">2025 season · waiver wire</div>
+      <div class="eyebrow" id="header-eyebrow">2026 season · waiver wire</div>
       <h1>The Big League<span class="line2">FAAB Intelligence</span></h1>
     </div>
   </div>
@@ -434,6 +434,12 @@ h1 em{color:var(--lime);font-style:normal}
   <div id="views" style="display:none">
     <!-- OVERVIEW -->
     <div class="view active" id="view-overview">
+      <div class="filter-row" style="margin-bottom:10px">
+        <span class="filter-lbl">Season:</span>
+        <button class="filter-btn ov-season-btn" id="ov-season-2026" onclick="renderOverview(2026,this)">2026</button>
+        <button class="filter-btn ov-season-btn active" id="ov-season-2025" onclick="renderOverview(2025,this)">2025</button>
+        <button class="filter-btn ov-season-btn" id="ov-season-2024" onclick="renderOverview(2024,this)">2024</button>
+      </div>
       <div class="sec">league summary</div>
       <div class="sum-grid" id="sum-grid"></div>
       <div class="sec">FAAB by week — click a bar to preview</div>
@@ -446,10 +452,10 @@ h1 em{color:var(--lime);font-style:normal}
       <div class="pos-grid" id="pos-grid"></div>
       <div class="sec">FAAB leaderboard — click a row to view manager</div>
       <div class="lb" id="lb"></div>
-      <div class="sec">budget pacing — remaining FAAB by week</div>
-      <div id="pacing-2025"></div>
-      <div class="sec">most contested players — 2025 season</div>
-      <div id="contested-2025"></div>
+      <div class="sec" id="pacing-sec">budget pacing — remaining FAAB by week</div>
+      <div id="pacing-chart"></div>
+      <div class="sec" id="contested-sec">most contested players</div>
+      <div id="contested-list"></div>
     </div>
 
     <!-- MANAGERS -->
@@ -464,7 +470,7 @@ h1 em{color:var(--lime);font-style:normal}
     <!-- WEEKLY -->
     <div class="view" id="view-weekly">
       <div class="sec">player search — every auction, both seasons</div>
-      <input class="bc-input" id="ps-input" oninput="runPlayerSearch()" placeholder="Search any player across all 2024–2025 auctions..." style="width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px 12px;font-size:12px">
+      <input class="bc-input" id="ps-input" oninput="runPlayerSearch()" placeholder="Search any player across all 2024–2026 auctions..." style="width:100%;box-sizing:border-box;margin-bottom:8px;padding:9px 12px;font-size:12px">
       <div id="ps-results" style="margin-bottom:1.25rem"></div>
       <div class="sec">weekly waiver results — full auction view</div>
       <div class="filter-row" style="margin-bottom:8px">
@@ -514,7 +520,7 @@ h1 em{color:var(--lime);font-style:normal}
     </div>
 
     <div style="margin-top:3rem;padding-top:1rem;border-top:.5px solid var(--b1);font-size:10px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap;align-items:center">
-      <span>Data: 2024–2025 seasons · Sleeper API</span>
+      <span>Data: 2024–2026 seasons · Sleeper API</span>
       <span>Player data cached locally — daily in season, weekly otherwise</span>
       <span onclick="clearPlayerCache()" style="color:var(--muted2);cursor:pointer;text-decoration:underline;text-underline-offset:2px">Force refresh cache</span>
       <span style="margin-left:auto">Built for KGB</span>
@@ -916,12 +922,105 @@ function renderWeek(week){
   }).join('');
 }
 
+let _overviewSeason=2025;
+
+function overviewSources(season){
+  return{
+    stats: season===2024?APP.stats2024:season===2026?(APP.stats2026||{}):APP.stats,
+    weekly: season===2024?APP.weeklyData2024:season===2026?(APP.weeklyData2026||{}):APP.weeklyData
+  };
+}
+
+function renderOverview(season, btn){
+  _overviewSeason=season;
+  document.querySelectorAll('.ov-season-btn').forEach(b=>b.classList.remove('active'));
+  const sb=btn||document.getElementById('ov-season-'+season);
+  if(sb)sb.classList.add('active');
+
+  const {stats, weekly}=overviewSources(season);
+  const managers=Object.values(ROSTER_MAP);
+  // Ensure every manager has a stats stub so a barely-started 2026 still renders
+  const S=(n)=>stats[n]||{totalSpent:0,bidCount:0,maxBid:0,avgBid:0,weekSpend:{},posSpend:{},remainingFAAB:season===2026?(APP.remaining2026?.[n]??BUDGET):null};
+
+  const weekTotals={};
+  for(let w=1;w<=18;w++) weekTotals[w]=managers.reduce((s,n)=>s+(S(n).weekSpend?.[w]||0),0);
+  const posTotals={};
+  managers.forEach(n=>Object.entries(S(n).posSpend||{}).forEach(([p,a])=>{posTotals[p]=(posTotals[p]||0)+a;}));
+
+  const totalSpend=managers.reduce((s,n)=>s+(S(n).totalSpent||0),0);
+  const totalBids=managers.reduce((s,n)=>s+(S(n).bidCount||0),0);
+  const maxBid=Math.max(...managers.map(n=>S(n).maxBid||0),0);
+  const maxBidMgr=managers.find(n=>S(n).maxBid===maxBid&&maxBid>0);
+  const mostActive=managers.map(n=>[n,S(n)]).sort((a,b)=>b[1].bidCount-a[1].bidCount)[0];
+  const maxWk=Math.max(...Object.values(weekTotals),1);
+
+  const sorted=managers.map(n=>[n,S(n)]).sort((a,b)=>{
+    if(a[0]===WINNER)return -1;if(b[0]===WINNER)return 1;
+    if(a[0]===YOU)return -1;if(b[0]===YOU)return 1;
+    return b[1].totalSpent-a[1].totalSpent;
+  });
+  if(season===2025)APP.sorted=sorted; // preserve legacy consumers
+
+  const live=season===2026&&totalSpend===0&&totalBids===0;
+
+  document.getElementById('sum-grid').innerHTML=live?`
+      <div class="sum-card" style="grid-column:1/-1"><div class="sum-val" style="font-size:14px;color:var(--muted2)">2026 waivers haven't run yet</div><div class="sum-lbl">This page fills in once the season's first FAAB claims process. Switch to 2025 or 2024 for last season's picture.</div></div>`:`
+      <div class="sum-card"><div class="sum-val">${fmt(totalSpend)}</div><div class="sum-lbl">Total FAAB spent</div><div class="sum-sub">${fmt(1200-totalSpend)} unspent league-wide</div></div>
+      <div class="sum-card"><div class="sum-val">${totalBids}</div><div class="sum-lbl">Winning bids</div><div class="sum-sub">${fmt(Math.round(totalSpend/Math.max(totalBids,1)))} avg per add</div></div>
+      <div class="sum-card"><div class="sum-val">${maxBid>0?fmt(maxBid):'-'}</div><div class="sum-lbl">Largest single bid</div><div class="sum-sub">${maxBidMgr||''}</div></div>
+      <div class="sum-card"><div class="sum-val">${mostActive[0]}</div><div class="sum-lbl">Most active</div><div class="sum-sub">${mostActive[1].bidCount} winning bids</div></div>`;
+
+  document.getElementById('wk-bars').innerHTML=Array.from({length:18},(_,i)=>i+1).map(w=>{
+    const amt=weekTotals[w]||0;
+    const h=Math.max(Math.round(amt/maxWk*68),amt>0?3:0);
+    return`<div class="wk-col" id="wkcol-${w}" onclick="renderOverviewWeekDetail(${w})">
+      <div style="flex:1;width:100%;position:relative;display:flex;align-items:flex-end">
+        ${amt>0?`<div class="wk-amt">${'$'+amt}</div>`:''}
+        <div class="wk-bar" style="height:${h}px;width:100%"></div>
+      </div>
+      <div class="wk-lbl">W${w}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('wk-detail-panel').innerHTML='';
+
+  document.getElementById('pos-grid').innerHTML=Object.entries(posTotals).sort((a,b)=>b[1]-a[1]).map(([pos,amt])=>`
+    <div class="pos-card">
+      <div class="pos-name">${pos}</div>
+      <div class="pos-val" style="color:${posColor(pos)}">${fmt(amt)}</div>
+      <div class="pos-sub">${totalSpend>0?Math.round(amt/totalSpend*100):0}% of spend</div>
+    </div>`).join('')||`<div style="font-size:11px;color:var(--muted)">No position spending yet.</div>`;
+
+  document.getElementById('lb').innerHTML=`
+    <div class="lb-row lb-hdr">
+      <div></div><div>Manager</div>
+      <div class="lb-r">Spent</div><div class="lb-r">Adds</div>
+      <div class="lb-r">Avg bid</div><div class="lb-r">Top bid</div>
+      <div class="lb-r">Remaining</div>
+    </div>
+    ${sorted.map(([name,s],i)=>`
+      <div class="lb-row" onclick="goToManager('${name}')">
+        <div style="color:var(--muted)">${i+1}</div>
+        <div class="${nameClass(name)}">${name}${name===WINNER?' 🏆':name===YOU?' ◀':''}</div>
+        <div class="lb-r ${s.totalSpent>=35?'c-red':s.totalSpent>=15?'c-amber':'c-green'}">${fmt(s.totalSpent)}</div>
+        <div class="lb-r">${s.bidCount}</div>
+        <div class="lb-r">${s.avgBid>0?fmt(Math.round(s.avgBid)):'-'}</div>
+        <div class="lb-r ${s.maxBid>=25?'c-red':s.maxBid>=12?'c-amber':s.maxBid>0?'c-green':'c-muted'}">${s.maxBid>0?fmt(s.maxBid):'-'}</div>
+        <div class="lb-r ${s.remainingFAAB!==null&&s.remainingFAAB>=50?'c-green':s.remainingFAAB!==null&&s.remainingFAAB<=15?'c-red':'c-muted'}">${s.remainingFAAB!==null?fmt(s.remainingFAAB):'—'}</div>
+      </div>`).join('')}`;
+
+  const secLbl=season===2026?'2026 season':season===2024?'2024 season':'2025 season';
+  const pacingSec=document.getElementById('pacing-sec'); if(pacingSec)pacingSec.textContent=`budget pacing — remaining FAAB by week (${secLbl})`;
+  const contestedSec=document.getElementById('contested-sec'); if(contestedSec)contestedSec.textContent=`most contested players — ${secLbl}`;
+  renderPacingChart('pacing-chart', stats, season);
+  renderContestedPlayers('contested-list', weekly, season);
+}
+
 function renderOverviewWeekDetail(week){
   document.querySelectorAll('.wk-col').forEach(el=>el.classList.remove('selected'));
   const col=document.getElementById('wkcol-'+week);
   if(col)col.classList.add('selected');
 
-  const data=APP.weeklyData[week]||{players:[]};
+  const data=overviewSources(_overviewSeason).weekly[week]||{players:[]};
   const players=data.players||[];
   const wonBids=players.flatMap(p=>p.bids.filter(b=>b.status==='complete'));
   const weekSpend=wonBids.reduce((s,b)=>s+b.bid,0);
@@ -4412,6 +4511,16 @@ async function main(){
       fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE_2026}`).catch(()=>fetchJ(`https://api.sleeper.app/v1/league/${LEAGUE}`).catch(()=>null))
     ]);
     APP.nflState=nflState; // {season, week, season_type: 'off'|'pre'|'regular'|'post'} or null
+    // Header reflects the live season/week so it never reads a stale year.
+    try{
+      const eb=document.getElementById('header-eyebrow');
+      if(eb){
+        const yr=nflState?.season||'2026';
+        const wk=nflState?.week, st=nflState?.season_type;
+        const phase=['regular','post'].includes(st)&&wk?` · Week ${wk}`:st==='pre'?' · preseason':'';
+        eb.textContent=`${yr} season${phase} · waiver wire`;
+      }
+    }catch(e){}
     // League scoring → which projection stat to use. This league is 0.5 PPR;
     // read it from Sleeper so the tool stays correct if settings ever change.
     const rec=leagueObj?.scoring_settings?.rec ?? 0.5;
@@ -4513,67 +4622,21 @@ async function main(){
     Object.values(stats).forEach(s=>{Object.entries(s.posSpend).forEach(([p,a])=>{posTotals[p]=(posTotals[p]||0)+a;});});
     APP.posTotals=posTotals;
 
-    const totalSpend=Object.values(stats).reduce((s,m)=>s+m.totalSpent,0);
-    const totalBids=Object.values(stats).reduce((s,m)=>s+m.bidCount,0);
-    const maxBid=Math.max(...Object.values(stats).map(m=>m.maxBid),0);
-    const maxBidMgr=Object.entries(stats).find(([,s])=>s.maxBid===maxBid);
-    const mostActive=Object.entries(stats).sort((a,b)=>b[1].bidCount-a[1].bidCount)[0];
-    const maxWk=Math.max(...Object.values(weekTotals),1);
+    setProg(100);
 
-    APP.sorted=Object.entries(stats).sort((a,b)=>{
+    // RENDER OVERVIEW — defaults to 2026 once it has activity, else 2025
+    const ovHas2026=Object.values(weeklyData2026||{}).some(d=>d?.players?.length);
+    _overviewSeason=ovHas2026?2026:2025;
+    renderOverview(_overviewSeason);
+
+    // RENDER MANAGER GRID — always 2025 career view, independent of Overview season
+    const mgrSorted=Object.entries(stats).sort((a,b)=>{
       if(a[0]===WINNER)return -1;if(b[0]===WINNER)return 1;
       if(a[0]===YOU)return -1;if(b[0]===YOU)return 1;
       return b[1].totalSpent-a[1].totalSpent;
     });
-
-    setProg(100);
-
-    // RENDER OVERVIEW
-    document.getElementById('sum-grid').innerHTML=`
-      <div class="sum-card"><div class="sum-val">${fmt(totalSpend)}</div><div class="sum-lbl">Total FAAB spent</div><div class="sum-sub">${fmt(1200-totalSpend)} unspent league-wide</div></div>
-      <div class="sum-card"><div class="sum-val">${totalBids}</div><div class="sum-lbl">Winning bids</div><div class="sum-sub">${fmt(Math.round(totalSpend/Math.max(totalBids,1)))} avg per add</div></div>
-      <div class="sum-card"><div class="sum-val">${maxBid>0?fmt(maxBid):'-'}</div><div class="sum-lbl">Largest single bid</div><div class="sum-sub">${maxBidMgr?maxBidMgr[0]:''}</div></div>
-      <div class="sum-card"><div class="sum-val">${mostActive[0]}</div><div class="sum-lbl">Most active</div><div class="sum-sub">${mostActive[1].bidCount} winning bids</div></div>`;
-
-    document.getElementById('wk-bars').innerHTML=Array.from({length:18},(_,i)=>i+1).map(w=>{
-      const amt=weekTotals[w]||0;
-      const h=Math.max(Math.round(amt/maxWk*68),amt>0?3:0);
-      return`<div class="wk-col" id="wkcol-${w}" onclick="renderOverviewWeekDetail(${w})">
-        <div style="flex:1;width:100%;position:relative;display:flex;align-items:flex-end">
-          ${amt>0?`<div class="wk-amt">${'$'+amt}</div>`:''}
-          <div class="wk-bar" style="height:${h}px;width:100%"></div>
-        </div>
-        <div class="wk-lbl">W${w}</div>
-      </div>`;
-    }).join('');
-
-    document.getElementById('pos-grid').innerHTML=Object.entries(posTotals).sort((a,b)=>b[1]-a[1]).map(([pos,amt])=>`
-      <div class="pos-card">
-        <div class="pos-name">${pos}</div>
-        <div class="pos-val" style="color:${posColor(pos)}">${fmt(amt)}</div>
-        <div class="pos-sub">${totalSpend>0?Math.round(amt/totalSpend*100):0}% of spend</div>
-      </div>`).join('');
-
-    document.getElementById('lb').innerHTML=`
-      <div class="lb-row lb-hdr">
-        <div></div><div>Manager</div>
-        <div class="lb-r">Spent</div><div class="lb-r">Adds</div>
-        <div class="lb-r">Avg bid</div><div class="lb-r">Top bid</div>
-        <div class="lb-r">Remaining</div>
-      </div>
-      ${APP.sorted.map(([name,s],i)=>`
-        <div class="lb-row" onclick="goToManager('${name}')">
-          <div style="color:var(--muted)">${i+1}</div>
-          <div class="${nameClass(name)}">${name}${name===WINNER?' 🏆':name===YOU?' ◀':''}</div>
-          <div class="lb-r ${s.totalSpent>=35?'c-red':s.totalSpent>=15?'c-amber':'c-green'}">${fmt(s.totalSpent)}</div>
-          <div class="lb-r">${s.bidCount}</div>
-          <div class="lb-r">${s.avgBid>0?fmt(Math.round(s.avgBid)):'-'}</div>
-          <div class="lb-r ${s.maxBid>=25?'c-red':s.maxBid>=12?'c-amber':s.maxBid>0?'c-green':'c-muted'}">${s.maxBid>0?fmt(s.maxBid):'-'}</div>
-          <div class="lb-r ${s.remainingFAAB!==null&&s.remainingFAAB>=50?'c-green':s.remainingFAAB!==null&&s.remainingFAAB<=15?'c-red':'c-muted'}">${s.remainingFAAB!==null?fmt(s.remainingFAAB):'—'}</div>
-        </div>`).join('')}`;
-
-    // RENDER MANAGER GRID
-    document.getElementById('mgr-grid').innerHTML=APP.sorted.map(([name,s])=>{
+    APP.sorted=mgrSorted; // legacy consumers
+    document.getElementById('mgr-grid').innerHTML=mgrSorted.map(([name,s])=>{
       const arch=archetype(s);
       const pct=Math.min(Math.round(s.totalSpent/BUDGET*100),100);
       return`<div class="mgr-card ${name===WINNER?'winner':name===YOU?'you':''}" onclick="showManagerDetail('${name}')">
@@ -4608,10 +4671,6 @@ async function main(){
     const wdInit=weeklyDataFor(_weeklySeason);
     const firstActive=Array.from({length:18},(_,i)=>i+1).find(w=>(wdInit[w]?.players?.length||0)>0)||1;
     renderWeek(firstActive);
-
-    // Render pacing chart + contested players
-    renderPacingChart('pacing-2025', stats, 2025);
-    renderContestedPlayers('contested-2025', weeklyData, 2025);
 
     APP._edges=null; APP._marketPrice=null; APP._roundRate=undefined;
     document.getElementById('loader').style.display='none';
