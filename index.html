@@ -173,6 +173,7 @@ h1 em{color:var(--lime);font-style:normal}
 .filter-btn.active{background:var(--s2);color:var(--text);border-color:var(--b2)}
 .trend-calc-btn{width:100%;margin-top:8px;font-size:10px;padding:5px 8px;border-radius:5px;border:.5px solid rgba(200,241,53,.3);background:rgba(200,241,53,.06);color:var(--lime);cursor:pointer;font-family:'DM Mono',monospace;transition:all .12s}
 .trend-calc-btn:hover{background:rgba(200,241,53,.14);border-color:var(--lime)}
+.trend-owned{width:100%;margin-top:8px;font-size:10px;padding:5px 8px;border-radius:5px;border:.5px solid var(--b1);background:var(--s1);color:var(--muted);text-align:center}
 
 .overbid-wrap{background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:1rem 1.25rem;margin-bottom:.5rem}
 .overbid-table{width:100%}
@@ -1552,7 +1553,7 @@ function saveNote(name, text){
 
 // Budget strategy state
 let _bsState={
-  positions:{RB:'ok',WR:'ok',QB:'ok',TE:'ok'},
+  positions:{RB:'ok',WR:'ok',QB:'ok',TE:'ok',DEF:'ok',K:'ok'},
   aggression:'balanced'
 };
 
@@ -1622,6 +1623,7 @@ function calcBidRecommendation(pos, competitors){
     // --- Effective ceiling calculation ---
     // Start with the typical ceiling
     let effectiveCeiling=ceiling;
+    let spikeProne=false;
     const notes=[];
 
     // 1. Overbid style adjustment
@@ -1641,15 +1643,16 @@ function calcBidRecommendation(pos, competitors){
         notes.push(`${style} bidder — ceiling estimate is reliable`);
       }
       if(uncontestedWaste>=10){
-        notes.push(`Budget Burner pattern — may panic-bid above ceiling`);
-        effectiveCeiling=Math.max(effectiveCeiling, allTimeMax);
+        notes.push(`Budget Burner pattern — may panic-bid above ceiling (priced into the guarantee, not the value bid)`);
+        spikeProne=true;
       }
     }
 
-    // 2. Spike risk — outlier bids suggest they can go way above ceiling situationally
+    // 2. Spike risk — outlier bids suggest they can go way above ceiling situationally.
+    // Labeled as risk (widens the guarantee price below), NOT baked into value bid.
     if(hasOutliers&&allTimeMax>=ceiling*1.5&&allTimeMax>=10){
-      effectiveCeiling=Math.max(effectiveCeiling, allTimeMax);
-      notes.push(`Outlier spike detected — ceiling unreliable, using all-time max`);
+      spikeProne=true;
+      notes.push(`Outlier spike history — capable of ${fmt(allTimeMax)} situationally (priced into the guarantee)`);
     }
 
     // 3. Trend adjustment — getting more aggressive at this position?
@@ -1658,7 +1661,7 @@ function calcBidRecommendation(pos, competitors){
       const delta=(intel25.totalSpent||0)-(intel24.totalSpent||0);
       if(delta>=8){
         trend='↑ Much more aggressive in 2025';
-        effectiveCeiling=Math.round(effectiveCeiling*1.15);
+        effectiveCeiling=Math.round(effectiveCeiling*1.08);
         notes.push(`Spending surged at ${pos} in 2025 — trending up`);
       } else if(delta>=4){
         trend='↑ More aggressive in 2025';
@@ -1700,10 +1703,10 @@ function calcBidRecommendation(pos, competitors){
     const need=rosterNeed(name,pos);
     if(need){
       if(need.status==='severe'){
-        effectiveCeiling=Math.round(effectiveCeiling*1.25);
+        effectiveCeiling=Math.round(effectiveCeiling*1.15);
         notes.push(`Roster need: only ${need.healthy} healthy ${pos}${need.healthy!==1?'s':''} rostered (league median ${need.median})${need.hurt>0?` — ${need.hurt} on Out/IR`:''} — expect them to fight`);
       } else if(need.status==='thin'){
-        effectiveCeiling=Math.round(effectiveCeiling*1.12);
+        effectiveCeiling=Math.round(effectiveCeiling*1.07);
         notes.push(`Roster lean at ${pos}: ${need.healthy} healthy vs league median ${need.median}${need.hurt>0?` (${need.hurt} hurt)`:''}`);
       } else if(need.status==='deep'){
         notes.push(`Already deep at ${pos} (${need.raw} rostered vs median ${need.median}) — less likely to contest`);
@@ -1750,7 +1753,7 @@ function calcBidRecommendation(pos, competitors){
     else if(totalBids===0) risk='No data';
     else risk='Low';
 
-    results.push({name,typical,ceiling,allTimeMax,effectiveCeiling,budgetCapped,rem2026,
+    results.push({name,typical,ceiling,allTimeMax,effectiveCeiling,budgetCapped,rem2026,spikeProne,
       risk,hasData:true,trend,totalBids,arch,notes,
       beatPrice:bp.price,beatN:bp.n,habit,
       posWinRate,posContested:posContested.length});
@@ -1779,32 +1782,67 @@ function calcBidRecommendation(pos, competitors){
   } else {
     const active=results.filter(r=>r.hasData);
 
-    // Use effective ceiling (already adjusted for style, trend, outliers)
-    const maxEffective=Math.max(...active.map(r=>r.effectiveCeiling),0);
-    recommended=maxEffective>0?maxEffective+1:1;
+    // Week-of-season discipline. Early = many waiver cycles left + high uncertainty,
+    // so preserve budget; late = fewer cycles, playoff push justifies paying up.
+    const wk=(['regular','post'].includes(APP.nflState?.season_type))?(APP.nflState?.week||null):null;
+    let weekFactor=1, weekNote='';
+    if(wk!==null){
+      if(wk<=4){weekFactor=0.75; weekNote=`Week ${wk}: ~${18-wk} waiver runs left and roles still settling — early-season adds bust often, so preserve budget for known needs.`;}
+      else if(wk<=9){weekFactor=0.90; weekNote=`Week ${wk}: mid-season — pay for genuine upgrades, but the wire refreshes weekly. Don't overcommit.`;}
+      else if(wk<=13){weekFactor=1.00; weekNote=`Week ${wk}: playoff positioning — a difference-maker is worth full price now.`;}
+      else{weekFactor=1.05; weekNote=`Week ${wk}: playoff run — leftover FAAB has little value. Spend to win the matchup in front of you.`;}
+    }
 
-    // Value bid: clears 90% of every selected competitor's bid history
+    // THE VALUE BID (headline): the price that clears ~90% of what these rivals
+    // have actually bid at this position — win most of the time without overpaying.
     const beatPrices=active.map(r=>r.beatPrice).filter(v=>v!==null&&v!==undefined);
     var valueBid=beatPrices.length?Math.max(...beatPrices):null;
 
-    // Safe floor = above highest typical bid
+    // THE GUARANTEE (secondary): beat the scariest adjusted ceiling by $1, and
+    // account for spike-prone rivals who can situationally blow past their ceiling.
+    const maxEffective=Math.max(...active.map(r=>r.effectiveCeiling),0);
+    const spikeMax=Math.max(...active.filter(r=>r.spikeProne).map(r=>r.allTimeMax),0);
+    var guarantee=Math.max(maxEffective, spikeMax)+1;
+
+    // Safe floor = just above the highest typical bid among rivals.
     const maxTypical=Math.max(...active.map(r=>r.typical),0);
     safeFloor=maxTypical>0?maxTypical+1:1;
-    if(recommended<safeFloor) recommended=safeFloor;
 
-    // Build reasoning from the top threat
+    // Base recommendation on the VALUE bid, not the ceiling. Fall back to floor or
+    // market when beat-price data is thin.
+    let baseRec = valueBid!==null ? valueBid : (safeFloor>1?safeFloor:(market&&market.all.n>=3?market.all.avg:5));
+
+    // Apply week discipline, then clamp: never below $1, never above the guarantee
+    // (paying more than certainty makes no sense), never above your OWN budget.
+    recommended=Math.max(1, Math.round(baseRec*weekFactor));
+    if(recommended>guarantee) recommended=guarantee;
+    const myFAAB=APP.remaining2026?.[YOU];
+    let selfCapped=false;
+    if(myFAAB!==undefined&&myFAAB!==null&&recommended>myFAAB){recommended=myFAAB;selfCapped=true;}
+
+    // Efficiency framing — make the saved budget tangible.
+    const saved=Math.max(guarantee-recommended,0);
+    const myLeft=(myFAAB!==undefined&&myFAAB!==null)?myFAAB:BUDGET;
+    const savedPct=myLeft>0?Math.round(saved/myLeft*100):0;
+
     const topThreat=active.sort((a,b)=>b.effectiveCeiling-a.effectiveCeiling)[0];
-    const hasSpike=results.some(r=>r.risk==='Spike risk');
     const adjustments=active.flatMap(r=>r.notes).filter(Boolean);
 
-    reasoning=`Top threat: ${topThreat.name} (historical max ${fmt(topThreat.allTimeMax)}, adjusted ceiling ${fmt(topThreat.effectiveCeiling)}).`;
-    if(valueBid!==null) reasoning+=` The recommended ${fmt(valueBid)} clears 90% of everything ${active.length>1?'these managers have':topThreat.name+' has'} ever bid — paying more buys certainty, not value.`;
-    if(adjustments.length) reasoning+=` Key factors: ${adjustments.slice(0,2).join('; ')}.`;
+    reasoning=`Bid <strong>${fmt(recommended)}</strong> to win this efficiently`+
+      (valueBid!==null?` — that clears ~90% of what ${active.length>1?'these managers have':topThreat.name+' has'} actually bid at ${pos}`:'')+`.`;
+    if(weekNote) reasoning+=` ${weekNote}`;
+    if(saved>0) reasoning+=` Guaranteeing the win would cost ${fmt(guarantee)} (beating ${topThreat.name}'s adjusted ceiling${spikeMax>guarantee-1?' + spike buffer':''}) — bidding the value price instead saves ${fmt(saved)}${savedPct>=3?`, about ${savedPct}% of your remaining budget`:''}.`;
+    if(selfCapped) reasoning+=` Capped at your ${fmt(myFAAB)} remaining FAAB.`;
+    if(adjustments.length) reasoning+=` Threat factors: ${adjustments.slice(0,2).join('; ')}.`;
+
+    var effMeta={guarantee, valueBid, saved, savedPct, weekFactor, wk, selfCapped};
   }
 
   const hasSpike=results.some(r=>r.risk==='Spike risk');
   return{results, recommended, safeFloor, hasSpike, reasoning,
-    valueBid:typeof valueBid!=='undefined'?valueBid:null};
+    valueBid:typeof valueBid!=='undefined'?valueBid:null,
+    guarantee:typeof guarantee!=='undefined'?guarantee:null,
+    effMeta:typeof effMeta!=='undefined'?effMeta:null};
 }
 
 function calcPhaseSpend(statsObj){
@@ -1857,10 +1895,12 @@ function calcBudgetStrategy(){
 
   let adj={early:0,mid:0,playoff:0,buffer:0};
   Object.entries(positions).forEach(([pos,str])=>{
+    const streamer=pos==='DEF'||pos==='K';
     if(str==='weak'){
       if(pos==='RB'||pos==='WR'){adj.early+=5;adj.mid+=5;adj.buffer-=5;adj.playoff-=5;}
+      else if(streamer){adj.mid+=2;adj.buffer-=2;} // streaming reserve, not a budget sink
       else{adj.mid+=5;adj.buffer-=5;}
-    } else if(str==='strong'){
+    } else if(str==='strong'&&!streamer){
       adj.buffer+=3;adj.early-=1;adj.mid-=2;
     }
   });
@@ -1885,7 +1925,20 @@ function calcBudgetStrategy(){
   const strongPos=Object.entries(positions).filter(([,v])=>v==='strong').map(([p])=>p);
 
   const insights=[];
-  if(weakPos.length) insights.push(`Roster weak at <strong>${weakPos.join(', ')}</strong> — budget front-loaded to address on the wire early.`);
+  const weakCore=weakPos.filter(p=>p!=='DEF'&&p!=='K');
+  const weakStream=weakPos.filter(p=>p==='DEF'||p==='K');
+  if(weakCore.length) insights.push(`Roster weak at <strong>${weakCore.join(', ')}</strong> — budget front-loaded to address on the wire early.`);
+  if(weakStream.length){
+    // Ground the streaming reserve in what this league actually pays at DEF/K
+    const streamBids=[];
+    [APP.weeklyData,APP.weeklyData2024].forEach(wd=>Object.values(wd||{}).forEach(d=>(d.players||[]).forEach(p=>{
+      if(weakStream.includes(p.pos))p.bids.forEach(b=>{if(b.status==='complete')streamBids.push(b.bid);});
+    })));
+    streamBids.sort((a,b)=>a-b);
+    const med=streamBids.length?streamBids[Math.floor(streamBids.length/2)]:0;
+    const mx=streamBids.length?streamBids[streamBids.length-1]:0;
+    insights.push(`Weak at <strong>${weakStream.join(', ')}</strong> — plan to stream, not spend: this league's median winning ${weakStream.join('/')} bid is <strong>${fmt(med)}</strong> (max ever ${fmt(mx)}, n=${streamBids.length}). Reserve a few $1–2 bids for bye/matchup weeks.`);
+  }
   if(strongPos.length) insights.push(`Strong at <strong>${strongPos.join(', ')}</strong> — more reserved for opportunistic mid-season adds.`);
 
   // Compare your 2025 vs recommendation
@@ -2031,7 +2084,7 @@ function renderWarRoom(){
         <div class="wr-panel-body">
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">Post-draft roster strength</div>
           <div class="bs-sliders">
-            ${['RB','WR','QB','TE'].map(pos=>`
+            ${['RB','WR','QB','TE','DEF','K'].map(pos=>`
               <div class="bs-pos-row">
                 <span class="bs-pos-label" style="color:${posColor(pos)}">${pos}</span>
                 <div class="bs-options">
@@ -2070,6 +2123,8 @@ function renderWarRoom(){
           <button class="filter-btn" id="trend-btn-WR" onclick="setTrendFilter('WR',this)">WR</button>
           <button class="filter-btn" id="trend-btn-QB" onclick="setTrendFilter('QB',this)">QB</button>
           <button class="filter-btn" id="trend-btn-TE" onclick="setTrendFilter('TE',this)">TE</button>
+          <button class="filter-btn" id="trend-btn-DEF" onclick="setTrendFilter('DEF',this)">DEF</button>
+          <button class="filter-btn" id="trend-btn-K" onclick="setTrendFilter('K',this)">K</button>
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
           <span class="filter-lbl">Window:</span>
@@ -2240,10 +2295,12 @@ function updateBidCalc(){
     </div>`:'';
 
   const {results,recommended,safeFloor,hasSpike}=calc;
-  // Headline = the empirical value bid (clears 90% of their bid history).
-  // The Lock (beats historical max) is shown as a tier, not the headline.
-  const headline=(calc.valueBid!==null&&calc.valueBid!==undefined)?Math.max(calc.valueBid,safeFloor):recommended;
-  const headlineLbl=(calc.valueBid!==null&&calc.valueBid!==undefined)?'Recommended bid · clears 90% of their bid history':'Recommended bid';
+  // Headline = the week-aware value bid (recommended). Guarantee ("Lock") is the
+  // price that beats every rival's adjusted ceiling — shown as a tier, not headline.
+  const headline=recommended;
+  const guarantee=calc.guarantee||recommended;
+  const eff=calc.effMeta||{};
+  const headlineLbl=eff.wk?`Recommended bid · Week ${eff.wk} value price`:'Recommended bid · value price';
   const budgetPct=Math.round(headline/BUDGET*100);
   const wouldLeave=remaining-headline;
   const budgetWarn=wouldLeave<15&&remaining<BUDGET;
@@ -2259,15 +2316,15 @@ function updateBidCalc(){
         <div>
           <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">${headlineLbl}</div>
           <div class="bc-rec-bid">${fmt(headline)}</div>
-          <div class="bc-rec-sub">${budgetPct}% of budget</div>
+          <div class="bc-rec-sub">${budgetPct}% of budget${eff.saved>0?` · saves ${fmt(eff.saved)} vs the safe max`:''}</div>
           <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
             <div style="background:var(--s1);border:.5px solid var(--b1);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Floor</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--muted2)">${fmt(safeFloor)}</span><div style="font-size:8px;color:var(--muted)">beats their typical bid</div></div>
-            <div style="background:var(--s1);border:.5px solid rgba(200,241,53,.3);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--lime);text-transform:uppercase;letter-spacing:.06em">Lock</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--lime)">${fmt(recommended)}</span><div style="font-size:8px;color:var(--muted)">beats their historical max — pay only for a league-winner</div></div>
+            <div style="background:var(--s1);border:.5px solid rgba(200,241,53,.3);border-radius:6px;padding:5px 10px"><span style="font-size:9px;color:var(--lime);text-transform:uppercase;letter-spacing:.06em">Guarantee</span> <span style="font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:13px;color:var(--lime)">${fmt(guarantee)}</span><div style="font-size:8px;color:var(--muted)">beats their ceiling — pay only for a league-winner</div></div>
           </div>
           ${mktWarn?`<div style="background:rgba(251,191,36,.07);border:.5px solid rgba(251,191,36,.25);border-radius:8px;padding:7px 11px;font-size:10px;color:var(--amber);margin-top:8px;line-height:1.5">Reality check: ${fmt(headline)} is ${(headline/mktRef).toFixed(1)}x what a ${_bcState.pos} actually costs in this league (avg winning bid ${fmt(mktRef)}, n=${mkt.all.n}). That price is for difference-makers only.</div>`:''}
           ${calc.reasoning?`<div style="font-size:10px;color:var(--muted2);margin-top:6px;line-height:1.5">${calc.reasoning}</div>`:''}
         </div>
-        ${hasSpike?`<div style="font-size:10px;background:rgba(251,191,36,.1);border:.5px solid rgba(251,191,36,.3);border-radius:6px;padding:4px 8px;color:var(--amber);max-width:160px;line-height:1.5">⚠ Spike risk detected — a competitor has bid well above their ceiling before</div>`:''}
+        ${hasSpike?`<div style="font-size:10px;background:rgba(251,191,36,.1);border:.5px solid rgba(251,191,36,.3);border-radius:6px;padding:4px 8px;color:var(--amber);max-width:160px;line-height:1.5">⚠ Spike risk — a rival has bid well above their ceiling before; the Guarantee price accounts for it</div>`:''}
       </div>
       <div class="bc-competitor-table">
         <div class="bc-comp-row bc-comp-hdr">
@@ -2488,6 +2545,14 @@ function refreshTrending(){
   });
 }
 
+function currentOwner(pid){
+  // Who currently rosters this player in the 2026 league? Authoritative — covers
+  // draft picks, waivers, and trades, unlike historical auction data.
+  if(!APP.rosters2026)return null;
+  const hit=Object.entries(APP.rosters2026).find(([,pids])=>pids.includes(pid));
+  return hit?hit[0]:null;
+}
+
 function teammateOwners(targetPid){
   // Who rosters a same-team, same-position player as the target? Those managers
   // have handcuff/insurance motivation (e.g. the Javonte Williams owner when a
@@ -2626,6 +2691,7 @@ function renderTrending(){
         const barW=Math.round(p.count/maxCount*100);
         const posC=posColor(p.pos);
         const canCalc=['RB','WR','QB','TE','DEF','K'].includes(p.pos);
+        const owner=currentOwner(p.player_id);
         const safeName=(p.name||'').replace(/'/g,"\\'");
         // Context tags from player cache v3 + projections (all optional — hide when absent)
         const injC=p.inj?(['Out','IR','PUP','Sus','COV','Doubtful'].includes(p.inj)?'var(--red)':'var(--amber)'):null;
@@ -2652,9 +2718,13 @@ function renderTrending(){
           <div style="height:3px;background:var(--s1);border-radius:2px;overflow:hidden;margin-bottom:8px">
             <div style="height:100%;width:${barW}%;background:${isAdd?posC:'var(--red)'};border-radius:2px;opacity:.7"></div>
           </div>
-          ${allLeagueBids.length>0?`
+          ${owner?`
             <div style="font-size:10px;color:var(--muted2);line-height:1.6">
-              ${whoWon?`Rostered by <span class="mgr-link" style="color:${nameClass(whoWon)||'var(--muted2)'}" onclick="goToManager('${whoWon}')" title="View ${whoWon}'s profile">${whoWon}</span> in your league`:'Not in your league'}
+              ${owner===YOU?`<span style="color:var(--blue)">On your roster</span>`:`On <span class="mgr-link" style="color:${nameClass(owner)||'var(--amber)'}" onclick="goToManager('${owner}')" title="View ${owner}'s profile">${owner}</span>'s roster`}
+              ${topBid!==null?` · Top past bid <span style="color:var(--lime);font-weight:500">${fmt(topBid)}</span>`:''}
+            </div>`:allLeagueBids.length>0?`
+            <div style="font-size:10px;color:var(--muted2);line-height:1.6">
+              Previously ${whoWon?`won by <span class="mgr-link" style="color:${nameClass(whoWon)||'var(--muted2)'}" onclick="goToManager('${whoWon}')" title="View ${whoWon}'s profile">${whoWon}</span>`:'auctioned'} here, now unrostered
               ${topBid!==null?` · Top bid was <span style="color:var(--lime);font-weight:500">${fmt(topBid)}</span>`:''}
               ${wasContested?` · <span style="color:var(--amber)">Was contested</span>`:''}
             </div>`:`
@@ -2662,7 +2732,7 @@ function renderTrending(){
               Not picked up in your league in 2024–2025
               ${isAdd?` · <span style="color:var(--green)">Potential waiver target</span>`:''}
             </div>`}
-          ${canCalc?`<button class="trend-calc-btn" onclick="addTrendingToBidCalc('${p.player_id}','${safeName}','${p.pos}')">🎯 Add to bid calculator</button>`:''}
+          ${owner?`<div class="trend-owned">🔒 Rostered — not available on waivers</div>`:canCalc?`<button class="trend-calc-btn" onclick="addTrendingToBidCalc('${p.player_id}','${safeName}','${p.pos}')">🎯 Add to bid calculator</button>`:''}
         </div>`;
       }).join('')}
     </div>
@@ -2919,13 +2989,14 @@ function runPlayerSearch(){
   box.innerHTML=res.map(({season,week,p})=>{
     const bids=[...p.bids].sort((a,b)=>b.bid-a.bid);
     const canCalc=['RB','WR','QB','TE','DEF','K'].includes(p.pos);
+    const psOwner=currentOwner(p.pid);
     const safeName=(p.name||'').replace(/'/g,"\\'");
     return`<div style="background:var(--s1);border:.5px solid var(--b1);border-radius:10px;padding:.75rem 1rem;margin-bottom:6px">
       <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;flex-wrap:wrap">
         <span class="bid-pos-cell" style="color:${posColor(p.pos)}">${p.pos}</span>
         <span style="font-weight:500;color:var(--text)">${p.name}</span>
         <span style="font-size:10px;color:var(--muted)">${season} · Wk ${week} · ${p.bids.length} bid${p.bids.length!==1?'s':''}</span>
-        ${canCalc?`<button class="trend-calc-btn" style="width:auto;margin:0 0 0 auto;padding:3px 9px" onclick="addTrendingToBidCalc('${p.pid}','${safeName}','${p.pos}')">🎯 Bid calc</button>`:''}
+        ${psOwner?`<span style="font-size:9px;margin-left:auto;color:var(--amber)">🔒 on ${psOwner===YOU?'your':psOwner+"'s"} 2026 roster</span>`:canCalc?`<button class="trend-calc-btn" style="width:auto;margin:0 0 0 auto;padding:3px 9px" onclick="addTrendingToBidCalc('${p.pid}','${safeName}','${p.pos}')">🎯 Bid calc</button>`:''}
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:5px">
         ${bids.map(b=>`<span class="mgr-link" onclick="goToManager('${b.manager}')" title="View ${b.manager}'s profile" style="font-size:10px;padding:3px 9px;border-radius:4px;background:${b.status==='complete'?'rgba(200,241,53,.1)':'var(--s2)'};border:.5px solid ${b.status==='complete'?'rgba(200,241,53,.35)':'var(--b1)'};color:${b.status==='complete'?'var(--lime)':'var(--muted2)'}">${b.manager} ${fmt(b.bid)}${b.status==='complete'?' ✓':''}</span>`).join('')}
@@ -3750,10 +3821,15 @@ function computeContestedRecord(name, pos){
 
 // ── Beat price: the bid that historically clears 90% of their attempts ───────
 function computeBeatPrice(name, pos){
-  const bids=getBidAttempts(name,'all').filter(a=>a.bid>0&&(!pos||a.pos===pos)).map(a=>a.bid);
-  if(bids.length<4)return{price:null,p90:null,n:bids.length};
-  const p90=pctile(bids,0.9);
-  return{price:p90+1,p90,n:bids.length};
+  // The "value bid": clear the rival's TYPICAL bid, not their spikes. We trim the
+  // top outlier bids, then target the ~65th percentile of what remains + $1. This
+  // wins the large majority of realistic auctions without paying for their ceiling.
+  let bids=getBidAttempts(name,'all').filter(a=>a.bid>0&&(!pos||a.pos===pos)).map(a=>a.bid).sort((x,y)=>x-y);
+  if(bids.length<4)return{price:null,p65:null,n:bids.length};
+  // Trim the single highest bid as an outlier guard when we have enough samples
+  const trimmed=bids.length>=6?bids.slice(0,-1):bids;
+  const p65=pctile(trimmed,0.65);
+  return{price:p65+1,p65,n:bids.length};
 }
 
 // ── Timing fingerprint: share of total spend deployed by Week 6, per season ──
